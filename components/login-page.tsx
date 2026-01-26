@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { Baby, Brain, Mail, Loader2 } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
-import { auth, googleProvider } from "@/lib/firebase"
+import { initFirebase, googleProvider } from "@/lib/firebase"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { toast } from "sonner"
 
@@ -29,6 +29,7 @@ export type LoginCredentials = {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const { auth } = initFirebase()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [position, setPosition] = useState("")
@@ -252,13 +253,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            <p>
-              Don't have an account?{" "}
-              <button className="text-cyan-600 hover:text-cyan-700 font-medium underline">
-                Contact Administrator
-              </button>
-            </p>
+<div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+  <p>
+    Don&apos;t have an account?{" "}
+    <a
+      href="mailto:admin@yourhospital.com"
+      className="text-cyan-600 hover:text-cyan-700 font-medium underline"
+    >
+      Contact Administrator
+    </a>
+  </p>
           </div>
         </CardContent>
       </Card>
