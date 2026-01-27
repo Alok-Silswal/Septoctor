@@ -1,0 +1,340 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ============================================
+       HELPERS
+    ============================================ */
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && userDoc() != null;
+    }
+
+    function profile() {
+      return userDoc().data;
+    }
+
+    function role() {
+      return profile().role;
+    }
+
+    function hasRole(r) {
+      return hasUserDoc() && role() == r;
+    }
+
+    function hasAnyRole(roles) {
+      return hasUserDoc() && role() in roles;
+    }
+
+    function userState() {
+      return profile().state;
+    }
+
+    function userHospital() {
+      return profile().hospitalId;
+    }
+
+    function isSuperAdmin() {
+      return hasRole("SUPER_ADMIN");
+    }
+
+    function isStateAdmin() {
+      return hasRole("STATE_ADMIN");
+    }
+
+    function isHospitalAdmin() {
+      return hasRole("HOSPITAL_ADMIN");
+    }
+
+    function isClinician() {
+      return hasRole("CLINICIAN");
+    }
+
+    /* ============================================
+       VALIDATION HELPERS
+    ============================================ */
+
+    function cannotChange(keys) {
+      return !request.resource.data
+        .diff(resource.data)
+        .affectedKeys()
+        .hasAny(keys);
+    }
+
+    function validPatient() {
+      return request.resource.data.keys().hasAll([
+        "name",
+        "state",
+        "hospitalId",
+        "assignedDoctorId"
+      ]);
+    }
+
+    function validMedicalRecord() {
+      return request.resource.data.keys().hasAll([
+        "patientId",
+        "hospitalId",
+        "state",
+        "assignedDoctorId",
+        "notes",
+        "createdAt"
+      ]);
+    }
+
+    function hospitalBelongsToState(hospitalId, state) {
+      return get(/databases/$(database)/documents/hospitals/$(hospitalId)).data.state == state;
+    }
+
+    /* ============================================
+       PATIENT OWNERSHIP CHECK
+    ============================================ */
+
+    function patientDoc(patientId) {
+      return get(/databases/$(database)/documents/patients/$(patientId));
+    }
+
+    function clinicianOwnsPatient(patientId) {
+      return patientDoc(patientId) != null &&
+             patientDoc(patientId).data.assignedDoctorId == request.auth.uid;
+    }
+
+    /* ============================================
+       USERS COLLECTION
+    ============================================ */
+
+    match /users/{userId} {
+
+      // READ
+      allow read: if hasUserDoc() && (
+        request.auth.uid == userId ||
+        isSuperAdmin() ||
+        (isStateAdmin() && resource.data.state == userState()) ||
+        (isHospitalAdmin() && resource.data.hospitalId == userHospital())
+      );
+
+      // UPDATE (self limited OR admins)
+      allow update: if hasUserDoc() && (
+
+        // User updates own non-critical fields
+        (request.auth.uid == userId &&
+          cannotChange(["role", "state", "hospitalId", "uid"])
+        )
+
+        ||
+
+        // Super admin full control
+        isSuperAdmin()
+
+        ||
+
+        // State admin manages users in their state (not super admins)
+        (isStateAdmin() &&
+          resource.data.state == userState() &&
+          request.resource.data.state == userState() &&
+          resource.data.role != "SUPER_ADMIN" &&
+          request.resource.data.role != "SUPER_ADMIN"
+        )
+
+        ||
+
+        // Hospital admin manages clinicians only
+        (isHospitalAdmin() &&
+          resource.data.hospitalId == userHospital() &&
+          request.resource.data.hospitalId == userHospital() &&
+          !(request.resource.data.role in
+            ["SUPER_ADMIN", "STATE_ADMIN", "HOSPITAL_ADMIN"])
+        )
+      );
+
+      // CREATE
+      allow create: if hasUserDoc() && (
+        isSuperAdmin() ||
+
+        (isStateAdmin() &&
+          request.resource.data.state == userState() &&
+          request.resource.data.role != "SUPER_ADMIN"
+        ) ||
+
+        (isHospitalAdmin() &&
+          request.resource.data.hospitalId == userHospital() &&
+          request.resource.data.role == "CLINICIAN"
+        )
+      );
+
+      // DELETE
+      allow delete: if isSuperAdmin();
+    }
+
+    /* ============================================
+       HOSPITALS COLLECTION
+    ============================================ */
+
+    match /hospitals/{hospitalId} {
+
+      allow read: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isStateAdmin() && resource.data.state == userState()) ||
+        (hospitalId == userHospital())
+      );
+
+      allow create, update: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isStateAdmin() &&
+          request.resource.data.state == userState()
+        )
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    /* ============================================
+       PATIENTS COLLECTION
+    ============================================ */
+
+    match /patients/{patientId} {
+
+      // READ
+      allow read: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isStateAdmin() && resource.data.state == userState()) ||
+        (isHospitalAdmin() && resource.data.hospitalId == userHospital()) ||
+        (isClinician() && resource.data.assignedDoctorId == request.auth.uid)
+      );
+
+      // CREATE (admins only)
+      allow create: if hasUserDoc() &&
+        validPatient() &&
+        (
+          isSuperAdmin() ||
+          
+          (isStateAdmin() && 
+            request.resource.data.state == userState() &&
+            hospitalBelongsToState(request.resource.data.hospitalId, userState())
+          ) ||
+          
+          (isHospitalAdmin() &&
+            request.resource.data.hospitalId == userHospital() &&
+            hospitalBelongsToState(userHospital(), request.resource.data.state)
+          )
+        );
+
+      // UPDATE
+      allow update: if hasUserDoc() && (
+
+        isSuperAdmin() ||
+
+        (isStateAdmin() &&
+          resource.data.state == userState() &&
+          request.resource.data.state == userState() &&
+          hospitalBelongsToState(request.resource.data.hospitalId, userState())
+        ) ||
+
+        (isHospitalAdmin() &&
+          resource.data.hospitalId == userHospital() &&
+          request.resource.data.hospitalId == userHospital()
+        ) ||
+
+        // Clinician limited update
+        (isClinician() &&
+          resource.data.assignedDoctorId == request.auth.uid &&
+          cannotChange(["hospitalId", "state", "assignedDoctorId"])
+        )
+      );
+
+      // DELETE
+      allow delete: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isHospitalAdmin() && resource.data.hospitalId == userHospital())
+      );
+    }
+
+    /* ============================================
+       MEDICAL RECORDS COLLECTION
+    ============================================ */
+
+    match /medicalRecords/{recordId} {
+
+      // READ
+      allow read: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isStateAdmin() && resource.data.state == userState()) ||
+        (isHospitalAdmin() && resource.data.hospitalId == userHospital()) ||
+        (isClinician() && resource.data.assignedDoctorId == request.auth.uid)
+      );
+
+      // CREATE
+      allow create: if hasUserDoc() &&
+        validMedicalRecord() &&
+        (
+          isSuperAdmin() ||
+
+          (isStateAdmin() &&
+            request.resource.data.state == userState() &&
+            hospitalBelongsToState(request.resource.data.hospitalId, userState())
+          ) ||
+
+          (isHospitalAdmin() &&
+            request.resource.data.hospitalId == userHospital()
+          ) ||
+
+          (isClinician() &&
+            clinicianOwnsPatient(request.resource.data.patientId) &&
+            request.resource.data.assignedDoctorId == request.auth.uid &&
+            request.resource.data.hospitalId == userHospital()
+          )
+        );
+
+      // UPDATE
+      allow update: if hasUserDoc() && (
+        isSuperAdmin() ||
+        
+        (isStateAdmin() &&
+          resource.data.state == userState() &&
+          request.resource.data.state == userState() &&
+          hospitalBelongsToState(request.resource.data.hospitalId, userState())
+        ) ||
+        
+        (isHospitalAdmin() && 
+          resource.data.hospitalId == userHospital() &&
+          request.resource.data.hospitalId == userHospital()
+        )
+      );
+
+      // DELETE
+      allow delete: if isSuperAdmin();
+    }
+
+    /* ============================================
+       AUDIT LOGS (READ ONLY)
+    ============================================ */
+
+    match /auditLogs/{logId} {
+
+      allow read: if hasUserDoc() && (
+        isSuperAdmin() ||
+        (isStateAdmin() && resource.data.state == userState()) ||
+        (isHospitalAdmin() && resource.data.hospitalId == userHospital())
+      );
+
+      // No client writes allowed
+      allow create, update, delete: if false;
+    }
+
+    /* ============================================
+       DEFAULT DENY
+    ============================================ */
+
+    match /{doc=**} {
+      allow read, write: if false;
+    }
+  }
+}

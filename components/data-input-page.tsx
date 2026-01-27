@@ -4,8 +4,11 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, Camera, Edit3, FileText, ArrowLeft, Database, FileImage } from "lucide-react"
+import { Upload, Camera, Edit3, FileText, ArrowLeft, Database, FileImage, LayoutDashboard } from "lucide-react"
 import { useRef, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { UserRole } from "@/lib/rbac"
+import { useRouter } from "next/navigation"
 
 interface DataInputPageProps {
   onManualEntry: () => void
@@ -53,11 +56,22 @@ const estimateCapturedImageSize = (width: number, height: number): number => {
 }
 
 export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
+  const router = useRouter()
+  const { userProfile } = useAuth()
   const structuredFileInputRef = useRef<HTMLInputElement>(null)
   const unstructuredFileInputRef = useRef<HTMLInputElement>(null)
   const [isProcessingStructured, setIsProcessingStructured] = useState(false)
   const [isProcessingUnstructured, setIsProcessingUnstructured] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+
+  // Handle dashboard navigation
+  const handleGoToDashboard = () => {
+    if (userProfile?.role === UserRole.HOSPITAL_ADMIN) {
+      router.push('/dashboard/hospital')
+    } else if (userProfile?.role === UserRole.CLINICIAN) {
+      router.push('/dashboard/clinician')
+    }
+  }
 
   // Option 1: Structured Data Upload Handler
   const handleStructuredFileUpload = () => {
@@ -193,7 +207,7 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
       <div className="w-full max-w-4xl mx-auto">
-        <div className="mb-4 md:mb-6">
+        <div className="mb-4 md:mb-6 flex justify-between items-center gap-2">
           <Button
             variant="ghost"
             onClick={onBack}
@@ -203,6 +217,19 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
             <span className="hidden sm:inline">Back to Welcome</span>
             <span className="sm:hidden">Back</span>
           </Button>
+
+          {/* Dashboard button for Hospital Admin and Clinician */}
+          {userProfile && (userProfile.role === UserRole.HOSPITAL_ADMIN || userProfile.role === UserRole.CLINICIAN) && (
+            <Button
+              variant="outline"
+              onClick={handleGoToDashboard}
+              className="bg-white/10 text-white hover:bg-white/20 hover:text-white border-white/30 flex items-center gap-2 min-h-[44px]"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden sm:inline">Go to Dashboard</span>
+              <span className="sm:hidden">Dashboard</span>
+            </Button>
+          )}
         </div>
 
         <div className="text-center mb-6 md:mb-8">

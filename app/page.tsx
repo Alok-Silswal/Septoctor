@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { LoginPage, type LoginCredentials } from "@/components/login-page"
 import { DataInputPage } from "@/components/data-input-page"
 import { AssessmentForm } from "@/components/assessment-form"
@@ -8,6 +9,8 @@ import { ProcessingPage } from "@/components/processing-page"
 import { ResultsPage } from "@/components/results-page" 
 import { DoctorInteractionPage } from "@/components/doctor-interaction-page"
 import { FinalPage } from "@/components/final-page"
+import { useAuth } from "@/hooks/use-auth"
+import { UserRole } from "@/lib/rbac"
 
 export type AssessmentData = {
   // Neonatal Information
@@ -81,11 +84,29 @@ export type AssessmentData = {
 }
 
 export default function SeptoctorApp() {
+  const router = useRouter()
+  const { userProfile, loading: authLoading } = useAuth()
   const [currentPage, setCurrentPage] = useState(0) // Start at 0 for login
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userCredentials, setUserCredentials] = useState<LoginCredentials | null>(null)
   const [assessmentData, setAssessmentData] = useState<Partial<AssessmentData>>({})
   const [riskScore, setRiskScore] = useState<number | null>(null)
+
+  // Auto-redirect only pure admin users to their dashboards
+  // Hospital admins and clinicians get to choose between dashboard and assessment workflow
+  useEffect(() => {
+    if (authLoading) return
+    
+    if (userProfile) {
+      // Only redirect pure admin roles (national/state level)
+      if (userProfile.role === UserRole.SUPER_ADMIN) {
+        router.push('/dashboard/national')
+      } else if (userProfile.role === UserRole.STATE_ADMIN) {
+        router.push('/dashboard/state')
+      }
+      // HOSPITAL_ADMIN and CLINICIAN users continue to normal flow with dashboard access
+    }
+  }, [userProfile, authLoading, router])
 
   const handleLogin = (credentials: LoginCredentials) => {
     // Store user credentials and navigate to data input page

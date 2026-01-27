@@ -47,11 +47,14 @@ ui-debug.log
 logs/
 *.log
 
-# API Keys and Secrets
+# API Keys and Secrets (CRITICAL - DO NOT COMMIT)
 **/serviceAccountKey.json
 **/credentials.json
 **/*-key.json
 **/*-secret.json
+firebase-admin-key.json
+*-admin-key.json
+seed-data-output.json
 
 # vercel
 .vercel
@@ -59,3 +62,45 @@ logs/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI/Documentation (Optional - uncomment to hide verbose docs)
+# Uncomment lines below if you want to exclude AI-generated documentation
+# ARCHITECTURE.md
+# INTEGRATION.md
+# RBAC_SETUP.md
+# DATA_MODEL.md
+# README_RBAC.md
+# SECURITY.md
+# *_GUIDE.md
+# IMPLEMENTATION.md
+
+# AI Assistant Files (typically not needed in repo)
+.cursorrules
+.aider*
+.ai/
+.github/copilot-instructions.md
+cursor-tutor/
+.vscode/settings.json
+.cursor/
+
+# Temporary/Draft Documentation
+NOTES.md
+TODO.md
+DRAFT*.md
+TEMP*.md
+*_DRAFT.md
+*_NOTES.md
+CHANGELOG_DRAFT.md
+DATA_MODEL.md
+INTEGRATION.md
+SECURITY.md
+ARCHITECTURE.md
+RBAC_SETUP.md
+README_RBAC.md
+IMPLEMENTATION.md
+
+
+# Generated API Documentation
+docs/api/generated/
+api-docs.json
+swagger.json
