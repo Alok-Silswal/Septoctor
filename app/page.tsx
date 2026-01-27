@@ -12,76 +12,65 @@ import { FinalPage } from "@/components/final-page"
 import { useAuth } from "@/hooks/use-auth"
 import { UserRole } from "@/lib/rbac"
 
-export type AssessmentData = {
-  // Neonatal Information
-  sex: string
-  gestationalAge: number
-  birthWeight: number
-  gestationalStatus: string
-  apgarScore: number
-  apgarCategory: string
-  multipleSeizures: string
+export interface AssessmentData {
+  
+  prom_present?: string;
+  prom_duration_hours?: number;
+  maternal_fever_celsius?: number;
+  chorioamnionitis?: string;
+  foul_smelling_liquor?: string;
+  prolonged_labor?: string;
+  pv_examinations_count?: number;
+  unbooked_pregnancy?: string;
+  maternal_uti_sti?: string;
+  meconium_stained_liquor?: string;
+  cotwin_iud?: string;
 
-  // Vital Signs
-  meanBloodPressure: number
-  lowestTemperature: number
-  lowestSerumPH: number
-  urineOutput: number
-  abnormalTemperature: string
+  gestational_age_category?: string;
+  birth_weight_category?: string;
+  apgar_1_min?: number;
+  apgar_5_min?: number;
+  resuscitation_required?: string;
+  neonatal_sex?: string;
 
-  // Respiratory & Circulatory Support
-  incubatedAtSepsisEvaluation: string
-  inotropeAtSepsisEvaluation: string
-  centralVenousLine: string
-  umbilicalArterialLine: string
+  temperature_celsius?: number;
+  feeding_status?: string;
+  activity_level?: string;
+  respiratory_distress?: string;
+  heart_rate_bpm?: number;
+  apnea_present?: string;
+  shock_present?: string;
 
-  // Respiratory Support & Oxygenation
-  oxygenationMethod: string
-  hfov: string
-  spo2Fio2Ratio: string
-  pao2Fio2Ratio: string
-  apneicSpells: string
-  respiratoryDistress: string
-  bradycardias: string
-  fastBreathing: string
-  chestIndrawing: string
-  grunting: string
+   // ---- HSS ----
+  hss_tlc_abnormal?: string;
+  hss_anc_abnormal?: string;
+  hss_it_ratio_high?: string;
+  hss_im_ratio_high?: string;
+  hss_platelet_low?: string;
+  hss_neutrophil_degeneration?: string;
+  hss_nrbc_elevated?: string;
 
-  // Comorbidities
-  necrotizingEnterocolitis: string
-  chronicLungDisease: string
-  surgicalConditions: string
-  intraventricularHemorrhage: string
+  // ---- APGAR 1 min ----
+  apgar1_appearance?: string;
+  apgar1_pulse?: string;
+  apgar1_grimace?: string;
+  apgar1_activity?: string;
+  apgar1_respiration?: string;
 
-  // Circulatory System
-  cardiovascularStatus: string
-  skinColouration: string
-  microcirculation: string
-  liverEnlargement: string
-  prolongedCapillaryRefillTime: number
-  cyanosis: string
+  // ---- APGAR 5 min ----
+  apgar5_appearance?: string;
+  apgar5_pulse?: string;
+  apgar5_grimace?: string;
+  apgar5_activity?: string;
+  apgar5_respiration?: string;
 
-  // Hematologic & Immune System
-  plateletCount: string
-  totalWBCCount: string
-  totalPMNCount: string
-  immaturePMNCount: string
-  itPMNRatio: string
-  imPMNRatio: string
-  degenerativePMNChanges: string
-  shiftToLeft: string
-
-  // Metabolic & Neuromuscular Signs
-  metabolicAcidosis: string
-  muscularHypotonia: string
-  stiffLimbs: string
-  convulsion: string
-  lethargy: string
-
-  // Gastrointestinal
-  giSymptoms: string
-  poorFeeding: string
+  // ---- SCORES ----
+  mnrs_score?: number;
+  hss_score?: number;
+  apgar1_total?: number;
+  apgar5_total?: number;
 }
+
 
 export default function SeptoctorApp() {
   const router = useRouter()
@@ -158,7 +147,12 @@ export default function SeptoctorApp() {
           />
         )
       case 6:
-        return <DoctorInteractionPage onBack={() => handlePageChange(5)} />
+        return (
+          <DoctorInteractionPage
+            onBack={() => handlePageChange(5)}
+            data={assessmentData}
+          />
+        );
       case 7:
         return <FinalPage onRestart={() => handlePageChange(2)} onBack={() => handlePageChange(5)} />
       default:

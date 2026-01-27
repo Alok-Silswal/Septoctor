@@ -11,6 +11,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft } from "lucide-react"
 import type { AssessmentData } from "@/app/page"
+import {
+  calculateMNRS,
+  calculateHSS,
+  calculateApgar1,
+  calculateApgar5,
+} from "@/lib/scoring";
 
 interface AssessmentFormProps {
   onSubmit: (data: AssessmentData) => void
@@ -26,8 +32,20 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
   }
 
   const handleSubmit = () => {
-    onSubmit(formData as AssessmentData)
-  }
+    const mnrsScore = calculateMNRS(formData);
+    const hssScore = calculateHSS(formData);
+    const apgar1Total = calculateApgar1(formData);
+    const apgar5Total = calculateApgar5(formData);
+
+    onSubmit({
+      ...formData,
+      mnrs_score: mnrsScore,
+      hss_score: hssScore,
+      apgar1_total: apgar1Total,
+      apgar5_total: apgar5Total,
+    } as AssessmentData);
+  };
+
 
   const YesNoRadio = ({ field, label }: { field: string; label: string }) => (
     <div className="space-y-2">
@@ -499,6 +517,7 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
           <div className="flex justify-center mt-6 md:mt-8 pt-4 md:pt-6 border-t">
             <Button
+              type="button"
               onClick={handleSubmit}
               className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white px-8 md:px-12 py-3 text-base md:text-lg font-semibold shadow-lg min-h-[44px]"
               size="lg"
@@ -506,6 +525,7 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
               Submit Assessment
             </Button>
           </div>
+
         </CardContent>
       </Card>
     </div>

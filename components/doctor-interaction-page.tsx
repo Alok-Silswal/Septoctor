@@ -3,79 +3,98 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Brain, Activity, Heart, Thermometer, Droplets } from "lucide-react"
+import {
+  ArrowLeft,
+  Brain,
+} from "lucide-react"
+
+import type { AssessmentData } from "@/app/page"
+import {
+  getMNRSCategory,
+  getHSSCategory,
+  getApgar1Category,
+  getApgar5Category,
+} from "@/lib/scoring"
 
 interface DoctorInteractionPageProps {
   onBack: () => void
+  data: Partial<AssessmentData>
 }
 
-export function DoctorInteractionPage({ onBack }: DoctorInteractionPageProps) {
+export function DoctorInteractionPage({ onBack, data }: DoctorInteractionPageProps) {
+  /* =========================
+     REAL SCORES
+  ========================= */
+
+  const mnrsScore = data.mnrs_score ?? 0
+  const hssScore = data.hss_score ?? 0
+  const apgar1 = data.apgar1_total ?? 0
+  const apgar5 = data.apgar5_total ?? 0
+
+  const mnrsData = getMNRSCategory(mnrsScore)
+  const hssData = getHSSCategory(hssScore)
+  const apgar1Data = getApgar1Category(apgar1)
+  const apgar5Data = getApgar5Category(apgar5)
+
+  /* =========================
+     SCORE CARDS
+  ========================= */
+
   const scoringSystems = [
     {
-      name: "SNAPPE-II Score",
-      score: 85,
-      risk: "High",
-      icon: Activity,
-      details: "Score for Neonatal Acute Physiology with Perinatal Extension",
+      name: "Maternal–Neonatal Risk Score (MNRS)",
+      score: mnrsScore,
+      risk: mnrsData.risk,
+      action: mnrsData.action,
+      icon: mnrsData.icon,
+      details: "Composite maternal, neonatal and early clinical risk factors",
     },
     {
-      name: "CRIB-II Score",
-      score: 72,
-      risk: "Moderate",
-      icon: Heart,
-      details: "Clinical Risk Index for Babies",
+      name: "Hematologic Scoring System (HSS)",
+      score: hssScore,
+      risk: hssData.risk,
+      action: hssData.action,
+      icon: hssData.icon,
+      details: "Based on hematologic abnormalities suggesting infection",
     },
     {
-      name: "NTISS Score",
-      score: 68,
-      risk: "Moderate",
-      icon: Brain,
-      details: "Neonatal Therapeutic Intervention Scoring System",
+      name: "APGAR Score (1 min)",
+      score: apgar1,
+      risk: apgar1Data.risk,
+      action: apgar1Data.action,
+      icon: apgar1Data.icon,
+      details: "Immediate neonatal adaptation after birth",
     },
     {
-      name: "TRIPS Score",
-      score: 91,
-      risk: "High",
-      icon: Thermometer,
-      details: "Transport Risk Index of Physiologic Stability",
-    },
-    {
-      name: "PSOFA Score",
-      score: 78,
-      risk: "High",
-      icon: Droplets,
-      details: "Pediatric Sequential Organ Failure Assessment",
+      name: "APGAR Score (5 min)",
+      score: apgar5,
+      risk: apgar5Data.risk,
+      action: apgar5Data.action,
+      icon: apgar5Data.icon,
+      details: "Ongoing neonatal stability and prognosis indicator",
     },
   ]
 
+  /* ========================= */
+
   const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case "High":
-        return "text-medical-danger"
-      case "Moderate":
-        return "text-medical-warning"
-      case "Low":
-        return "text-medical-success"
-      default:
-        return "text-muted-foreground"
-    }
+    if (risk.includes("High")) return "text-medical-danger"
+    if (risk.includes("Moderate")) return "text-medical-warning"
+    if (risk.includes("Low")) return "text-medical-success"
+    return "text-muted-foreground"
   }
 
   const getRiskBadgeVariant = (risk: string) => {
-    switch (risk) {
-      case "High":
-        return "destructive"
-      case "Moderate":
-        return "secondary"
-      case "Low":
-        return "default"
-      default:
-        return "outline"
-    }
+    if (risk.includes("High")) return "destructive"
+    if (risk.includes("Moderate")) return "secondary"
+    if (risk.includes("Low")) return "default"
+    return "outline"
   }
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* ================= HEADER ================= */}
+
       <div className="flex items-center mb-8">
         <Button variant="ghost" onClick={onBack} className="text-white hover:text-white/80 mr-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -83,13 +102,16 @@ export function DoctorInteractionPage({ onBack }: DoctorInteractionPageProps) {
         </Button>
         <div>
           <h2 className="text-3xl font-bold text-white mb-2">Detailed Scoring Analysis</h2>
-          <p className="text-white/80">Individual scoring system breakdowns</p>
+          <p className="text-white/80">Rule-based clinical scoring breakdown</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* ================= SCORE CARDS ================= */}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
         {scoringSystems.map((system, index) => {
           const IconComponent = system.icon
+
           return (
             <Card
               key={index}
@@ -101,51 +123,48 @@ export function DoctorInteractionPage({ onBack }: DoctorInteractionPageProps) {
                     <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mr-3">
                       <IconComponent className="w-5 h-5 text-white" />
                     </div>
-                    <CardTitle className="text-lg">{system.name}</CardTitle>
+                    <CardTitle className="text-base">{system.name}</CardTitle>
                   </div>
-                  <Badge variant={getRiskBadgeVariant(system.risk)}>{system.risk}</Badge>
+
+                  <Badge variant={getRiskBadgeVariant(system.risk)}>
+                    {system.risk}
+                  </Badge>
                 </div>
               </CardHeader>
+
               <CardContent>
                 <div className="text-center mb-4">
-                  <div className={`text-3xl font-bold mb-2 ${getRiskColor(system.risk)}`}>{system.score}%</div>
+                  <div className={`text-3xl font-bold mb-2 ${getRiskColor(system.risk)}`}>
+                    {system.score}
+                  </div>
+
                   <div className="w-full bg-muted rounded-full h-2 mb-4">
                     <div
                       className={`h-2 rounded-full transition-all duration-500 ${
-                        system.risk === "High"
+                        system.risk.includes("High")
                           ? "bg-medical-danger"
-                          : system.risk === "Moderate"
-                            ? "bg-medical-warning"
-                            : "bg-medical-success"
+                          : system.risk.includes("Moderate")
+                          ? "bg-medical-warning"
+                          : "bg-medical-success"
                       }`}
-                      style={{ width: `${system.score}%` }}
-                    ></div>
+                      style={{
+                        width: `${Math.min(system.score * 10, 100)}%`,
+                      }}
+                    />
                   </div>
                 </div>
 
-                <p className="text-sm text-muted-foreground text-center mb-4">{system.details}</p>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span>Physiological factors:</span>
-                    <span className="font-medium">High impact</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Laboratory values:</span>
-                    <span className="font-medium">Moderate impact</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Clinical presentation:</span>
-                    <span className="font-medium">{system.risk === "High" ? "Concerning" : "Stable"}</span>
-                  </div>
-                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  {system.details}
+                </p>
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {/* Chatbot Section */}
+      {/* ================= CHATBOT MOCK ================= */}
+
       <Card className="mt-8 bg-white/95 backdrop-blur-sm border-0 shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -153,38 +172,30 @@ export function DoctorInteractionPage({ onBack }: DoctorInteractionPageProps) {
             Ask Septoctor
           </CardTitle>
         </CardHeader>
+
         <CardContent>
           <div className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg p-6">
             <div className="space-y-4">
               <div className="bg-white rounded-lg p-4 shadow-sm">
                 <p className="text-sm font-medium text-muted-foreground mb-2">Doctor:</p>
-                <p className="text-sm">"Why is the risk score so high for this patient?"</p>
+                <p className="text-sm">Why is the MNRS high for this patient?</p>
               </div>
 
               <div className="bg-gradient-to-r from-primary to-accent rounded-lg p-4 text-white">
                 <p className="text-sm font-medium mb-2">Septoctor AI:</p>
                 <p className="text-sm">
-                  "The high risk score is primarily driven by abnormal vital signs (low blood pressure, temperature
-                  instability), elevated inflammatory markers, and respiratory distress requiring mechanical
-                  ventilation. The combination of these factors across multiple organ systems indicates a high
-                  probability of sepsis development."
+                  Elevated MNRS is driven by maternal infection indicators,
+                  neonatal vulnerability, and early clinical instability.
+                  These combined factors significantly increase sepsis risk.
                 </p>
               </div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
-                Why high risk?
-              </Button>
-              <Button variant="outline" size="sm">
-                Treatment recommendations?
-              </Button>
-              <Button variant="outline" size="sm">
-                Monitoring frequency?
-              </Button>
-              <Button variant="outline" size="sm">
-                Prognosis factors?
-              </Button>
+              <Button variant="outline" size="sm">Why high risk?</Button>
+              <Button variant="outline" size="sm">Treatment?</Button>
+              <Button variant="outline" size="sm">Monitoring?</Button>
+              <Button variant="outline" size="sm">Prognosis?</Button>
             </div>
           </div>
         </CardContent>
