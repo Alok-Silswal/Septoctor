@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -21,7 +21,7 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
   const [formData, setFormData] = useState<Partial<AssessmentData>>({})
   const [openSections, setOpenSections] = useState<string[]>(["neonatal-info"])
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -34,7 +34,7 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
       <Label className="text-sm font-medium">{label}</Label>
       <RadioGroup
         value={formData[field as keyof AssessmentData] as string}
-        onValueChange={(value) => updateFormData(field, value)}
+        onValueChange={(value: string) => updateFormData(field, value)}
         className="flex space-x-4"
       >
         <div className="flex items-center space-x-2">
@@ -49,7 +49,7 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
     </div>
   )
 
-  const totalSections = 9
+  const totalSections = 4
   const completedSections = openSections.length > 0 ? Math.min(openSections.length, totalSections) : 1
   const progress = (completedSections / totalSections) * 100
 
@@ -80,16 +80,144 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
       <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-xl">
         <CardContent className="p-4 md:p-6">
           <Accordion type="multiple" value={openSections} onValueChange={setOpenSections}>
-            {/* 1. Neonatal Information */}
-            <AccordionItem value="neonatal-info">
+            {/* Section A: Antenatal and Peripartum Risk Determinants */}
+            <AccordionItem value="section-a">
               <AccordionTrigger className="text-base md:text-lg font-semibold">
-                1. Neonatal Information
+                A. Antenatal and Peripartum Risk Determinants
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                  <YesNoRadio field="prom_present" label="PROM Present" />
+                  
+                  <div className="space-y-2">
+                    <Label>PROM Duration (hours)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="240"
+                      placeholder="Enter hours (0-240)"
+                      onChange={(e) => updateFormData("prom_duration_hours", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Maternal Fever (°C)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="Enter temperature"
+                      onChange={(e) => updateFormData("maternal_fever_celsius", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <YesNoRadio field="chorioamnionitis" label="Chorioamnionitis" />
+                  <YesNoRadio field="foul_smelling_liquor" label="Foul Smelling Liquor" />
+                  <YesNoRadio field="prolonged_labor" label="Prolonged Labor" />
+
+                  <div className="space-y-2">
+                    <Label>PV Examinations Count</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="20"
+                      placeholder="Enter count (0-20)"
+                      onChange={(e) => updateFormData("pv_examinations_count", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <YesNoRadio field="unbooked_pregnancy" label="Unbooked Pregnancy" />
+                  <YesNoRadio field="maternal_uti_sti" label="Maternal UTI/STI" />
+                  <YesNoRadio field="meconium_stained_liquor" label="Meconium Stained Liquor" />
+                  <YesNoRadio field="cotwin_iud" label="Co-twin IUD" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* Section B: Neonatal Constitutional and Perinatal Factors */}
+            <AccordionItem value="section-b">
+              <AccordionTrigger className="text-base md:text-lg font-semibold">
+                B. Neonatal Constitutional and Perinatal Factors
               </AccordionTrigger>
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
-                    <Label>Sex</Label>
-                    <Select onValueChange={(value) => updateFormData("sex", value)}>
+                    <Label>Gestational Age (weeks)</Label>
+                    <Input
+                      type="number"
+                      min="22"
+                      max="44"
+                      step="0.1"
+                      placeholder="Enter weeks (22-44)"
+                      onChange={(e) => updateFormData("gestational_age_weeks", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Birth Weight (grams)</Label>
+                    <Input
+                      type="number"
+                      min="300"
+                      max="6000"
+                      placeholder="Enter grams (300-6000)"
+                      onChange={(e) => updateFormData("birth_weight_grams", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Gestational Age Category</Label>
+                    <Select onValueChange={(value: string) => updateFormData("gestational_age_category", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="<34 weeks">&lt;34 weeks</SelectItem>
+                        <SelectItem value="34–36 weeks">34–36 weeks</SelectItem>
+                        <SelectItem value="≥37 weeks">≥37 weeks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Birth Weight Category</Label>
+                    <Select onValueChange={(value: string) => updateFormData("birth_weight_category", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="<1500 g">&lt;1500 g</SelectItem>
+                        <SelectItem value="1500–2499 g">1500–2499 g</SelectItem>
+                        <SelectItem value="≥2500 g">≥2500 g</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Apgar Score (1 min)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="10"
+                      placeholder="Enter score (0-10)"
+                      onChange={(e) => updateFormData("apgar_1_min", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Apgar Score (5 min)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="10"
+                      placeholder="Enter score (0-10)"
+                      onChange={(e) => updateFormData("apgar_5_min", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <YesNoRadio field="resuscitation_required" label="Resuscitation Required" />
+
+                  <div className="space-y-2">
+                    <Label>Neonatal Sex</Label>
+                    <Select onValueChange={(value: string) => updateFormData("neonatal_sex", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select sex" />
                       </SelectTrigger>
@@ -99,459 +227,275 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Gestational Age (Weeks)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Enter weeks"
-                      onChange={(e) => updateFormData("gestationalAge", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Birth Weight (gm)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Enter weight in grams"
-                      onChange={(e) => updateFormData("birthWeight", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Gestational Status</Label>
-                    <Select onValueChange={(value) => updateFormData("gestationalStatus", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="sga">10th Centile (SGA)</SelectItem>
-                        <SelectItem value="aga">Appropriate for Gestational Age</SelectItem>
-                        <SelectItem value="lga">Large for Gestational Age</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Apgar Score</Label>
-                    <Input
-                      type="number"
-                      placeholder="Enter score"
-                      onChange={(e) => updateFormData("apgarScore", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Apgar Category</Label>
-                    <Select onValueChange={(value) => updateFormData("apgarCategory", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<7">&lt;7</SelectItem>
-                        <SelectItem value=">7">&gt;7</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
-
-                <YesNoRadio field="multipleSeizures" label="Multiple Seizures" />
               </AccordionContent>
             </AccordionItem>
 
-            {/* 2. Vital Signs */}
-            <AccordionItem value="vital-signs">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">2. Vital Signs</AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <div className="space-y-2">
-                    <Label>Mean Blood Pressure (mmHg)</Label>
-                    <Input
-                      type="number"
-                      placeholder="Enter pressure"
-                      onChange={(e) => updateFormData("meanBloodPressure", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Lowest Temperature (°F)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      placeholder="Enter temperature"
-                      onChange={(e) => updateFormData("lowestTemperature", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Lowest Serum pH</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter pH"
-                      onChange={(e) => updateFormData("lowestSerumPH", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Urine Output (mL/kg/hr)</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      placeholder="Enter output"
-                      onChange={(e) => updateFormData("urineOutput", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
-                </div>
-
-                <YesNoRadio field="abnormalTemperature" label="Abnormal Temperature" />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 3. Respiratory & Circulatory Support */}
-            <AccordionItem value="respiratory-circulatory">
+            {/* Section C: Early Postnatal Clinical Indicators (0-72 hours) */}
+            <AccordionItem value="section-c">
               <AccordionTrigger className="text-base md:text-lg font-semibold">
-                3. Respiratory & Circulatory Support
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <YesNoRadio field="incubatedAtSepsisEvaluation" label="Incubated at Sepsis Evaluation" />
-                  <YesNoRadio field="inotropeAtSepsisEvaluation" label="Inotrope at Sepsis Evaluation" />
-                  <YesNoRadio field="centralVenousLine" label="Central Venous Line" />
-                  <YesNoRadio field="umbilicalArterialLine" label="Umbilical Arterial Line" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="respiratory-oxygenation">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">
-                4. Respiratory Support & Oxygenation
+                C. Early Postnatal Clinical Indicators (0–72 hours)
               </AccordionTrigger>
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
-                    <Label>Oxygenation Method</Label>
-                    <Select onValueChange={(value) => updateFormData("oxygenationMethod", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no-support">No Support</SelectItem>
-                        <SelectItem value="nasal-cannula">Nasal Cannula</SelectItem>
-                        <SelectItem value="cpap">CPAP</SelectItem>
-                        <SelectItem value="mechanical-ventilation">Mechanical Ventilation</SelectItem>
-                        <SelectItem value="hfov">High Frequency Oscillation</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <YesNoRadio field="hfov" label="HFOV" />
-
-                  <div className="space-y-2">
-                    <Label>SpO₂/FiO₂ Ratio</Label>
-                    <Select onValueChange={(value) => updateFormData("spo2Fio2Ratio", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select ratio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=">=300">≥300</SelectItem>
-                        <SelectItem value="<300">&lt;300</SelectItem>
-                        <SelectItem value="<200">&lt;200</SelectItem>
-                        <SelectItem value="<150">&lt;150</SelectItem>
-                        <SelectItem value="<100">&lt;100</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Temperature (°C)</Label>
+                    <Input
+                      type="number"
+                      min="30"
+                      max="42"
+                      step="0.1"
+                      placeholder="Enter temperature (30-42°C)"
+                      onChange={(e) => updateFormData("temperature_celsius", Number.parseFloat(e.target.value))}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>PaO₂/FiO₂ Ratio</Label>
-                    <Select onValueChange={(value) => updateFormData("pao2Fio2Ratio", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select ratio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=">2.5">&gt;2.5</SelectItem>
-                        <SelectItem value="1-2.49">1–2.49</SelectItem>
-                        <SelectItem value="0.3-0.99">0.3–0.99</SelectItem>
-                        <SelectItem value="<0.3">&lt;0.3</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <YesNoRadio field="apneicSpells" label="Apneic Spells" />
-                  <YesNoRadio field="respiratoryDistress" label="Respiratory Distress" />
-                  <YesNoRadio field="bradycardias" label="Bradycardias" />
-                  <YesNoRadio field="fastBreathing" label="Fast Breathing" />
-                  <YesNoRadio field="chestIndrawing" label="Chest Indrawing" />
-                  <YesNoRadio field="grunting" label="Grunting" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="comorbidities">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">5. Comorbidities</AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <YesNoRadio field="necrotizingEnterocolitis" label="Necrotizing Enterocolitis" />
-                  <YesNoRadio field="chronicLungDisease" label="Chronic Lung Disease" />
-                  <YesNoRadio field="surgicalConditions" label="Surgical Conditions" />
-                  <YesNoRadio field="intraventricularHemorrhage" label="Intraventricular Hemorrhage / Shunt" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="circulatory-system">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">6. Circulatory System</AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <div className="space-y-2">
-                    <Label>Cardiovascular Status</Label>
-                    <Select onValueChange={(value) => updateFormData("cardiovascularStatus", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no-inotropes-no-steroids">No inotropes & no steroids</SelectItem>
-                        <SelectItem value="no-inotropes-steroids">No inotropes & steroids</SelectItem>
-                        <SelectItem value="one-inotrope-steroids">One inotrope & steroids</SelectItem>
-                        <SelectItem value="multiple-inotropes-or-combo">
-                          ≥2 inotropes or 1 inotrope + steroids
-                        </SelectItem>
-                        <SelectItem value="multiple-inotropes-steroids">≥2 inotropes + steroids</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Skin Colouration</Label>
-                    <Select onValueChange={(value) => updateFormData("skinColouration", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select colouration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="moderate-change">Moderate Change</SelectItem>
-                        <SelectItem value="considerable-change">Considerable Change</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Microcirculation</Label>
-                    <Select onValueChange={(value) => updateFormData("microcirculation", value)}>
+                    <Label>Feeding Status</Label>
+                    <Select onValueChange={(value: string) => updateFormData("feeding_status", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="impaired">Impaired</SelectItem>
-                        <SelectItem value="considerably-impaired">Considerably Impaired</SelectItem>
+                        <SelectItem value="poor">Poor</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Liver Enlargement</Label>
-                    <Select onValueChange={(value) => updateFormData("liverEnlargement", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0-2">0–2</SelectItem>
-                        <SelectItem value="2-4">2–4</SelectItem>
-                        <SelectItem value=">4">&gt;4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Prolonged Capillary Refill Time</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      placeholder="Enter time"
-                      onChange={(e) =>
-                        updateFormData("prolongedCapillaryRefillTime", Number.parseFloat(e.target.value))
-                      }
-                    />
-                  </div>
-
-                  <YesNoRadio field="cyanosis" label="Cyanosis" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="hematologic-immune">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">
-                7. Hematologic & Immune System
-              </AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <div className="space-y-2">
-                    <Label>Platelet Count</Label>
-                    <Select onValueChange={(value) => updateFormData("plateletCount", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=">=150k">≥150k</SelectItem>
-                        <SelectItem value="100k-150k">100k–150k</SelectItem>
-                        <SelectItem value="50k-100k">50k–100k</SelectItem>
-                        <SelectItem value="<50k">&lt;50k</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Total WBC Count</Label>
-                    <Select onValueChange={(value) => updateFormData("totalWBCCount", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<=5000">≤5000</SelectItem>
-                        <SelectItem value=">=25000-birth">≥25000 at birth</SelectItem>
-                        <SelectItem value=">=30000-12-24hrs">≥30000 (12–24 hrs)</SelectItem>
-                        <SelectItem value=">=21000-day2+">≥21000 (Day 2+)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Total PMN Count</Label>
-                    <Select onValueChange={(value) => updateFormData("totalPMNCount", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no-mature-pmn">No mature PMN</SelectItem>
-                        <SelectItem value="increased-decreased">Increased/Decreased</SelectItem>
-                        <SelectItem value="1800-5400">1800–5400</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Immature PMN Count</Label>
-                    <Select onValueChange={(value) => updateFormData("immaturePMNCount", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<=600">≤600</SelectItem>
-                        <SelectItem value=">600">&gt;600</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>I:T PMN Ratio</Label>
-                    <Select onValueChange={(value) => updateFormData("itPMNRatio", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<=0.120">≤0.120</SelectItem>
-                        <SelectItem value=">0.120">&gt;0.120</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>I:M PMN Ratio</Label>
-                    <Select onValueChange={(value) => updateFormData("imPMNRatio", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<0.3">&lt;0.3</SelectItem>
-                        <SelectItem value=">=0.3">≥0.3</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Degenerative PMN Changes</Label>
-                    <Select onValueChange={(value) => updateFormData("degenerativePMNChanges", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="toxic-granules">Toxic Granules</SelectItem>
-                        <SelectItem value="vacuolations">Vacuolations</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Shift to Left</Label>
-                    <Select onValueChange={(value) => updateFormData("shiftToLeft", value)}>
+                    <Label>Activity Level</Label>
+                    <Select onValueChange={(value: string) => updateFormData("activity_level", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="no-0">No (0)</SelectItem>
-                        <SelectItem value="moderate-2">Moderate (2)</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="lethargic">Lethargic</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>Respiratory Distress</Label>
+                    <Select onValueChange={(value: string) => updateFormData("respiratory_distress", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select severity" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="mild">Mild</SelectItem>
+                        <SelectItem value="severe">Severe</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Heart Rate (bpm)</Label>
+                    <Input
+                      type="number"
+                      min="60"
+                      max="240"
+                      placeholder="Enter rate (60-240 bpm)"
+                      onChange={(e) => updateFormData("heart_rate_bpm", Number.parseFloat(e.target.value))}
+                    />
+                  </div>
+
+                  <YesNoRadio field="apnea_present" label="Apnea Present" />
+                  <YesNoRadio field="shock_present" label="Shock Present" />
                 </div>
               </AccordionContent>
             </AccordionItem>
 
-            <AccordionItem value="metabolic-neuromuscular">
+            {/* Section D: Standardized Clinical Scoring Systems */}
+            <AccordionItem value="section-d">
               <AccordionTrigger className="text-base md:text-lg font-semibold">
-                8. Metabolic & Neuromuscular Signs
+                D. Standardized Clinical Scoring Systems
               </AccordionTrigger>
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <div className="space-y-2">
-                    <Label>Metabolic Acidosis</Label>
-                    <Select onValueChange={(value) => updateFormData("metabolicAcidosis", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="ph->=7.2">pH ≥7.2</SelectItem>
-                        <SelectItem value="ph-<7.2">pH &lt;7.2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* D1. Hematologic Scoring System (HSS) */}
+                <Card className="border-2">
+                  <CardContent className="p-4 md:p-6">
+                    <h3 className="text-base md:text-lg font-semibold mb-4">
+                      D1. Hematologic Scoring System (HSS)
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                      <YesNoRadio field="hss_tlc_abnormal" label="Abnormal Total Leukocyte Count ( < 5000 or > 25000 cells/mm³ )" />
+                      <YesNoRadio field="hss_anc_abnormal" label="Abnormal Absolute Neutrophil Count" />
+                      <YesNoRadio field="hss_it_ratio_high" label="Immature-to-Total Neutrophil Ratio > 0.2" />
+                      <YesNoRadio field="hss_im_ratio_high" label="Immature-to-Mature Neutrophil Ratio > 0.3" />
+                      <YesNoRadio field="hss_platelet_low" label="Platelet Count < 150,000/mm³" />
+                      <YesNoRadio field="hss_neutrophil_degeneration" label="Degenerative Changes in Neutrophils" />
+                      <YesNoRadio field="hss_nrbc_elevated" label="Elevated Nucleated Red Blood Cells (NRBCs)" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                  <div className="space-y-2">
-                    <Label>Muscular Hypotonia</Label>
-                    <Select onValueChange={(value) => updateFormData("muscularHypotonia", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="hypotonic">Hypotonic</SelectItem>
-                        <SelectItem value="floppy">Floppy</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* D2. APGAR Score */}
+                <Card className="border-2">
+                  <CardContent className="p-4 md:p-6">
+                    <h3 className="text-base md:text-lg font-semibold mb-4">
+                      D2. APGAR Score
+                    </h3>
+                    
+                    {/* APGAR at 1 minute */}
+                    <div className="mb-6 pb-6 border-b">
+                      <h4 className="text-sm md:text-base font-semibold mb-4">APGAR at 1 minute</h4>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-2">
+                          <Label>Appearance (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar1_appearance", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                  <YesNoRadio field="stiffLimbs" label="Stiff Limbs" />
-                  <YesNoRadio field="convulsion" label="Convulsion" />
-                  <YesNoRadio field="lethargy" label="Lethargy" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                        <div className="space-y-2">
+                          <Label>Pulse (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar1_pulse", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-            <AccordionItem value="gastrointestinal">
-              <AccordionTrigger className="text-base md:text-lg font-semibold">9. Gastrointestinal</AccordionTrigger>
-              <AccordionContent className="space-y-4 md:space-y-6 pt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <YesNoRadio field="giSymptoms" label="GI Symptoms" />
-                  <YesNoRadio field="poorFeeding" label="Poor Feeding" />
-                </div>
+                        <div className="space-y-2">
+                          <Label>Grimace (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar1_grimace", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Activity (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar1_activity", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Respiration (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar1_respiration", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* APGAR at 5 minutes */}
+                    <div>
+                      <h4 className="text-sm md:text-base font-semibold mb-4">APGAR at 5 minutes</h4>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                        <div className="space-y-2">
+                          <Label>Appearance (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar5_appearance", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Pulse (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar5_pulse", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Grimace (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar5_grimace", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Activity (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar5_activity", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Respiration (0–2)</Label>
+                          <Select onValueChange={(value: string) => updateFormData("apgar5_respiration", value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select score" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">0</SelectItem>
+                              <SelectItem value="1">1</SelectItem>
+                              <SelectItem value="2">2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+          
 
           <div className="flex justify-center mt-6 md:mt-8 pt-4 md:pt-6 border-t">
             <Button

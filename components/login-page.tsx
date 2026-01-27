@@ -178,19 +178,23 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
             {/* Position Field */}
             <div className="space-y-2">
+<<<<<<< HEAD
               <Label htmlFor="position" className="text-sm font-medium text-gray-700">
                 Position
+=======
+              <Label htmlFor="position" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                User Role
+>>>>>>> 5bf6cde (Rectified login role field in login page and input parameters in manual entry field form)
               </Label>
               <Select value={position} onValueChange={setPosition}>
                 <SelectTrigger className="h-11 bg-gray-50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500">
                   <SelectValue placeholder="Select your position" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="nurse">Nurse</SelectItem>
-                  <SelectItem value="resident">Resident</SelectItem>
-                  <SelectItem value="specialist">Specialist</SelectItem>
-                  <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">National Admin</SelectItem>
+                  <SelectItem value="STATE_ADMIN">State Health Admin</SelectItem>
+                  <SelectItem value="HOSPITAL_ADMIN">Hospital HoD</SelectItem>
+                  <SelectItem value="CLINICIAN">Doctor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
