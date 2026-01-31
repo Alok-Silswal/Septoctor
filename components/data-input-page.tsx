@@ -55,6 +55,19 @@ const estimateCapturedImageSize = (width: number, height: number): number => {
   return (width * height * 3) / compressionFactor
 }
 
+// Convert file to Base64 (for OCR)
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      resolve(result.split(",")[1]) // remove data:image/...;base64,
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
   const router = useRouter()
   const { userProfile } = useAuth()
@@ -105,18 +118,51 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
       return
     }
 
-    // All validations passed - proceed with processing
-    setIsProcessingStructured(true)
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessingStructured(false)
-      alert(
-        `Structured data file "${file.name}" uploaded successfully! Data parsed. Redirecting to form with pre-filled data.`,
-      )
-      event.target.value = '' // Reset input
-      onManualEntry() // Redirect to manual entry with pre-filled data
-    }, 3000)
+    // All validations passed - proceed with REAL OCR
+setIsProcessingUnstructured(true)
+
+try {
+  const base64 = await fileToBase64(file)
+
+  const res = await fetch("/api/ocr", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64 }),
+  })
+
+  if (!res.ok) {
+    throw new Error("OCR request failed")
   }
+
+  const data = await res.json()
+
+  console.log("OCR TEXT:", data.text)
+
+  alert(
+    `File "${file.name}" processed with OCR. Redirecting to form with extracted data.`,
+  )
+
+  // TODO (next step): parse data.text and pre-fill form fields
+  onManualEntry()
+} catch (error) {
+  console.error(error)
+  alert("OCR failed. Please try manual entry or upload a clearer document.")
+} finally {
+  setIsProcessingUnstructured(false)
+  event.target.value = ""
+}
+
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () =>
+      resolve(reader.result!.toString().split(",")[1])
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
   // Option 2A: Unstructured Document Upload Handler
   const handleUnstructuredFileUpload = () => {
@@ -151,16 +197,39 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
     }
 
     // All validations passed - proceed with fake OCR
+    console.log("Unstructured upload passed validation, calling OCR...")
     setIsProcessingUnstructured(true)
-    // Simulate OCR processing
-    setTimeout(() => {
-      setIsProcessingUnstructured(false)
-      alert(
-        `File "${file.name}" uploaded successfully! OCR processing complete. Redirecting to form with pre-filled data.`,
-      )
-      event.target.value = ''
-      onManualEntry() // Redirect to manual entry with pre-filled data
-    }, 3000)
+    console.log("Unstructured upload passed validation, calling OCR...")
+setIsProcessingUnstructured(true)
+
+try {
+  // Convert file to Base64
+  const base64 = await fileToBase64(file)
+
+  // Call OCR API
+  const res = await fetch("/api/ocr", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64 }),
+  })
+
+  if (!res.ok) {
+    throw new Error("OCR request failed")
+  }
+
+  const data = await res.json()
+  console.log("OCR TEXT:", data.text)
+
+  alert("OCR processing complete. Redirecting to form with extracted data.")
+  onManualEntry()
+} catch (err) {
+  console.error("OCR failed:", err)
+  alert("OCR failed. Please try again.")
+} finally {
+  setIsProcessingUnstructured(false)
+  event.target.value = ''
+}
+
   }
 
   // Option 2B: Camera Capture Handler
