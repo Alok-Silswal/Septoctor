@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server"
-import vision from "@google-cloud/vision"
 
 // Force Node.js runtime (required for Google Cloud Vision SDK)
 export const runtime = 'nodejs'
 
-const client = new vision.ImageAnnotatorClient({
-  credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!)
-})
-
 export async function POST(req: Request) {
   try {
+    // Dynamic import to avoid build-time issues
+    const vision = await import("@google-cloud/vision")
+    
+    const client = new vision.ImageAnnotatorClient({
+      credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!)
+    })
+    
     const { imageBase64 } = await req.json()
 
     if (!imageBase64) {
