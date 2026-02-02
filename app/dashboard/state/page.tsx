@@ -90,23 +90,29 @@ export default function StateAdminDashboard() {
         });
       }
 
+      // Filter out hospitals with no bed data (likely duplicates)
+      const hospitalsWithBeds = hospitalsList.filter(h => (h.totalBeds || 0) > 0 || (h.nicuBeds || 0) > 0);
+      
       // Calculate stats for the state
-      const totalBeds = hospitalsList.reduce((sum, h) => sum + (h.totalBeds || 0), 0);
-      const totalNicuBeds = hospitalsList.reduce((sum, h) => sum + (h.nicuBeds || 0), 0);
+      const totalBeds = hospitalsWithBeds.reduce((sum, h) => sum + (h.totalBeds || 0), 0);
+      const totalNicuBeds = hospitalsWithBeds.reduce((sum, h) => sum + (h.nicuBeds || 0), 0);
       const occupiedBeds = patientsList.length;
       const bedOccupancyRate = totalBeds > 0 ? parseFloat((occupiedBeds / totalBeds * 100).toFixed(1)) : 0;
+
+      // Filter out hospitals with no bed data (likely duplicates)
+      const hospitalsWithBeds = hospitalsList.filter(h => (h.totalBeds || 0) > 0 || (h.nicuBeds || 0) > 0);
 
       setStats({
         totalPatients: patientsList.length,
         criticalPatients: patientsList.filter(p => p.status === 'critical' || p.riskScore >= 0.7).length,
-        totalHospitals: hospitalsList.length,
+        totalHospitals: hospitalsWithBeds.length,
         totalDoctors: 0, // We'll calculate this if needed
         totalBeds,
         totalNicuBeds,
         occupiedBeds,
         bedOccupancyRate
       });
-      setHospitals(hospitalsList);
+      setHospitals(hospitalsWithBeds);
       setPatients(patientsList);
       setDiagnoses(diagnosesList);
     } catch (error) {
