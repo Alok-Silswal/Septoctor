@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server"
 
-const ML_API_BASE =
-  process.env.ML_API_BASE ?? process.env.NEXT_PUBLIC_ML_API_BASE
-
-if (!ML_API_BASE) {
-  throw new Error(
-    "ML_API_BASE or NEXT_PUBLIC_ML_API_BASE must be set in your environment"
-  )
-}
-
 export async function POST(request: Request) {
   try {
+    const ML_API_BASE =
+      process.env.ML_API_BASE ?? process.env.NEXT_PUBLIC_ML_API_BASE
+
+    if (!ML_API_BASE) {
+      return NextResponse.json(
+        { detail: "ML_API_BASE or NEXT_PUBLIC_ML_API_BASE must be set in your environment" },
+        { status: 500 }
+      )
+    }
+
     const body = await request.json()
 
     const upstreamResponse = await fetch(`${ML_API_BASE}/predict`, {

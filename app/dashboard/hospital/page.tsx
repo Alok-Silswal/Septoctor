@@ -170,7 +170,7 @@ function HospitalDashboardInner() {
             {myHospital && <p className="text-sm text-gray-500">{myHospital.name}</p>}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/')}>New Assessment</Button>
+            <Button variant="outline" onClick={() => router.push('/?startAssessment=true')}>New Assessment</Button>
             <Button variant="outline" onClick={signOut}>Sign Out</Button>
           </div>
         </div>

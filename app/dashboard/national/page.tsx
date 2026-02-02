@@ -62,8 +62,12 @@ function NationalDashboardInner() {
         getDiagnosesByRole(userProfile),
         getAllStates()
       ]);
+      
+      // Filter out hospitals with no bed data (likely duplicates)
+      const hospitalsWithBeds = hospitalsList.filter(h => (h.totalBeds || 0) > 0 || (h.nicuBeds || 0) > 0);
+      
       setStats(dashboardStats);
-      setHospitals(hospitalsList);
+      setHospitals(hospitalsWithBeds);
       setPatients(patientsList);
       setDiagnoses(diagnosesList);
       setStates(statesList);
@@ -71,7 +75,7 @@ function NationalDashboardInner() {
       // Calculate stats per state
       const statsPerState: Record<string, any> = {};
       statesList.forEach(state => {
-        const stateHospitals = hospitalsList.filter(h => h.state === state);
+        const stateHospitals = hospitalsWithBeds.filter(h => h.state === state);
         const statePatients = patientsList.filter(p => p.state === state);
         statsPerState[state] = {
           hospitals: stateHospitals.length,
