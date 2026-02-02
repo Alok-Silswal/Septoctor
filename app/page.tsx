@@ -81,29 +81,10 @@ export default function SeptoctorApp() {
   const [assessmentData, setAssessmentData] = useState<Partial<AssessmentData>>({})
   const [riskScore, setRiskScore] = useState<number | null>(null)
 
-  // Check URL for startAssessment parameter
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get('startAssessment') === 'true' && userProfile) {
-        setIsLoggedIn(true)
-        setCurrentPage(2) // Go to data input page
-        // Clean up URL
-        window.history.replaceState({}, '', '/')
-      }
-    }
-  }, [userProfile])
-
   // Auto-redirect only pure admin users to their dashboards
   // Hospital admins and clinicians get to choose between the dashboard and assessment workflow
   useEffect(() => {
     if (authLoading) return
-    
-    // Don't redirect if starting an assessment
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      if (params.get('startAssessment') === 'true') return
-    }
     
     if (userProfile) {
       // Only redirect pure admin roles (national/state level)
