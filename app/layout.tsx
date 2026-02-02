@@ -5,6 +5,8 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { Toaster } from "@/components/ui/sonner"
+import { OCRProvider } from "@/context/ocr-context"
+
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -15,16 +17,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
-        <Toaster position="top-right" />
-        <Analytics />
+      <body>
+        <OCRProvider>
+          {children}
+        </OCRProvider>
       </body>
     </html>
   )
 }
+

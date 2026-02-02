@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft } from "lucide-react"
+import { useOCR } from "@/context/ocr-context"
+import { parseOCRText } from "@/lib/ocr-parser"
+
+
+
 import type { AssessmentData } from "@/app/page"
 import {
   calculateMNRS,
@@ -24,28 +29,87 @@ interface AssessmentFormProps {
 }
 
 export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
+  const { ocrText } = useOCR() 
+
+  const prefillAppliedRef = useRef(false)
+
   const [formData, setFormData] = useState<Partial<AssessmentData>>({})
+  const [prefillData, setPrefillData] = useState<Partial<AssessmentData>>({})
+  const isPrefilled = (field: keyof AssessmentData) =>
+  prefillData[field] !== undefined &&
+  formData[field] === prefillData[field]
   const [openSections, setOpenSections] = useState<string[]>(["neonatal-info"])
+  useEffect(() => {
+  if (ocrText) {
+    const parsed = parseOCRText(ocrText)
+    setPrefillData(parsed)
+  }
+}, [ocrText])
+// 2️⃣ Apply prefill once
+useEffect(() => {
+  if (!prefillAppliedRef.current && Object.keys(prefillData).length > 0) {
+    setFormData((prev) => ({
+      ...prev,
+      ...prefillData,
+    }))
+    prefillAppliedRef.current = true
+  }
+}, [prefillData])
+
 
   const updateFormData = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  
   const handleSubmit = () => {
-    const mnrsScore = calculateMNRS(formData);
-    const hssScore = calculateHSS(formData);
-    const apgar1Total = calculateApgar1(formData);
-    const apgar5Total = calculateApgar5(formData);
+  // ---------- VALIDATION START ----------
 
-    onSubmit({
-      ...formData,
-      mnrs_score: mnrsScore,
-      hss_score: hssScore,
-      apgar1_total: apgar1Total,
-      apgar5_total: apgar5Total,
-    } as AssessmentData);
-  };
+  const bw = formData.birth_weight_grams
+  if (bw !== undefined && (bw < 300 || bw > 6000)) {
+    alert("Birth weight looks invalid (300–6000 g). Please correct.")
+    return
+  }
 
+  const ga = formData.gestational_age_weeks
+  if (ga !== undefined && (ga < 22 || ga > 44)) {
+    alert("Gestational age looks invalid (22–44 weeks). Please correct.")
+    return
+  }
+
+  const apgar1 = formData.apgar_1_min
+  if (apgar1 !== undefined && (apgar1 < 0 || apgar1 > 10)) {
+    alert("APGAR score at 1 minute must be between 0 and 10.")
+    return
+  }
+
+  const apgar5 = formData.apgar_5_min
+  if (apgar5 !== undefined && (apgar5 < 0 || apgar5 > 10)) {
+    alert("APGAR score at 5 minutes must be between 0 and 10.")
+    return
+  }
+
+  const temp = formData.temperature_celsius
+  if (temp !== undefined && (temp < 30 || temp > 42)) {
+    alert("Temperature looks invalid (30–42 °C). Please correct.")
+    return
+  }
+
+  // ---------- VALIDATION END ----------
+
+  const mnrsScore = calculateMNRS(formData)
+  const hssScore = calculateHSS(formData)
+  const apgar1Total = calculateApgar1(formData)
+  const apgar5Total = calculateApgar5(formData)
+
+  onSubmit({
+    ...formData,
+    mnrs_score: mnrsScore,
+    hss_score: hssScore,
+    apgar1_total: apgar1Total,
+    apgar5_total: apgar5Total,
+  } as AssessmentData);
+};
 
   const YesNoRadio = ({ field, label }: { field: string; label: string }) => (
     <div className="space-y-2">
@@ -65,11 +129,14 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
         </div>
       </RadioGroup>
     </div>
-  )
+  );
 
-  const totalSections = 4
-  const completedSections = openSections.length > 0 ? Math.min(openSections.length, totalSections) : 1
-  const progress = (completedSections / totalSections) * 100
+  const totalSections = 4;
+const completedSections =
+  openSections.length > 0
+    ? Math.min(openSections.length, totalSections)
+    : 1;
+const progress = (completedSections / totalSections) * 100;
 
   return (
     <div className="max-w-4xl mx-auto px-4">
@@ -105,48 +172,124 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
               </AccordionTrigger>
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                  <YesNoRadio field="prom_present" label="PROM Present" />
-                  
+                 <YesNoRadio field="prom_present" label="PROM Present" />
+
+{isPrefilled("prom_present") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}                  
                   <div className="space-y-2">
                     <Label>PROM Duration (hours)</Label>
                     <Input
-                      type="number"
-                      min="0"
-                      max="240"
-                      placeholder="Enter hours (0-240)"
-                      onChange={(e) => updateFormData("prom_duration_hours", Number.parseFloat(e.target.value))}
-                    />
+  type="number"
+  min="0"
+  max="240"
+  placeholder="Enter hours (0-240)"
+  value={formData.prom_duration_hours ?? ""}
+  className={isPrefilled("prom_duration_hours") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("prom_duration_hours", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("prom_duration_hours") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <div className="space-y-2">
                     <Label>Maternal Fever (°C)</Label>
                     <Input
-                      type="number"
-                      step="0.1"
-                      placeholder="Enter temperature"
-                      onChange={(e) => updateFormData("maternal_fever_celsius", Number.parseFloat(e.target.value))}
-                    />
+  type="number"
+  step="0.1"
+  placeholder="Enter temperature"
+  value={formData.maternal_fever_celsius ?? ""}
+  className={isPrefilled("maternal_fever_celsius") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("maternal_fever_celsius", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("maternal_fever_celsius") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <YesNoRadio field="chorioamnionitis" label="Chorioamnionitis" />
+
+{isPrefilled("chorioamnionitis") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <YesNoRadio field="foul_smelling_liquor" label="Foul Smelling Liquor" />
+
+{isPrefilled("foul_smelling_liquor") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <YesNoRadio field="prolonged_labor" label="Prolonged Labor" />
 
+{isPrefilled("prolonged_labor") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <div className="space-y-2">
                     <Label>PV Examinations Count</Label>
                     <Input
-                      type="number"
-                      min="0"
-                      max="20"
-                      placeholder="Enter count (0-20)"
-                      onChange={(e) => updateFormData("pv_examinations_count", Number.parseFloat(e.target.value))}
-                    />
+  type="number"
+  min="0"
+  max="20"
+  placeholder="Enter count (0-20)"
+  value={formData.pv_examinations_count ?? ""}
+  className={isPrefilled("pv_examinations_count") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("pv_examinations_count", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("pv_examinations_count") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
-                  <YesNoRadio field="unbooked_pregnancy" label="Unbooked Pregnancy" />
+                 <YesNoRadio field="unbooked_pregnancy" label="Unbooked Pregnancy" />
+
+{isPrefilled("unbooked_pregnancy") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <YesNoRadio field="maternal_uti_sti" label="Maternal UTI/STI" />
-                  <YesNoRadio field="meconium_stained_liquor" label="Meconium Stained Liquor" />
+
+{isPrefilled("maternal_uti_sti") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
+                 <YesNoRadio field="meconium_stained_liquor" label="Meconium Stained Liquor" />
+
+{isPrefilled("meconium_stained_liquor") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <YesNoRadio field="cotwin_iud" label="Co-twin IUD" />
+
+{isPrefilled("cotwin_iud") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -159,91 +302,144 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
-                    <Label>Gestational Age (weeks)</Label>
-                    <Input
-                      type="number"
-                      min="22"
-                      max="44"
-                      step="0.1"
-                      placeholder="Enter weeks (22-44)"
-                      onChange={(e) => updateFormData("gestational_age_weeks", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
+  <Label>Birth Weight (grams)</Label>
 
-                  <div className="space-y-2">
-                    <Label>Birth Weight (grams)</Label>
-                    <Input
-                      type="number"
-                      min="300"
-                      max="6000"
-                      placeholder="Enter grams (300-6000)"
-                      onChange={(e) => updateFormData("birth_weight_grams", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
+  <Input
+  type="number"
+  min="300"
+  max="6000"
+  placeholder="Enter grams (300-6000)"
+  value={formData.birth_weight_grams ?? ""}
+  className={isPrefilled("birth_weight_grams") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("birth_weight_grams", Number(e.target.value))
+  }
+/>
 
-                  <div className="space-y-2">
-                    <Label>Gestational Age Category</Label>
-                    <Select onValueChange={(value: string) => updateFormData("gestational_age_category", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<34 weeks">&lt;34 weeks</SelectItem>
-                        <SelectItem value="34–36 weeks">34–36 weeks</SelectItem>
-                        <SelectItem value="≥37 weeks">≥37 weeks</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+{isPrefilled("birth_weight_grams") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
+</div>
+
+                 <div className="space-y-2">
+  <Label>Gestational Age (weeks)</Label>
+
+<Input
+  type="number"
+  min="22"
+  max="44"
+  step="0.1"
+  value={formData.gestational_age_weeks ?? ""}
+  className={isPrefilled("gestational_age_weeks") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("gestational_age_weeks", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("gestational_age_weeks") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
+</div>
+
 
                   <div className="space-y-2">
                     <Label>Birth Weight Category</Label>
-                    <Select onValueChange={(value: string) => updateFormData("birth_weight_category", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="<1500 g">&lt;1500 g</SelectItem>
-                        <SelectItem value="1500–2499 g">1500–2499 g</SelectItem>
-                        <SelectItem value="≥2500 g">≥2500 g</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Select
+  value={formData.birth_weight_category}
+  disabled
+>
+  <SelectTrigger
+    className={isPrefilled("birth_weight_category") ? "border-green-500" : ""}
+  >
+    <SelectValue placeholder="Auto-calculated" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="<1500 g">&lt;1500 g</SelectItem>
+    <SelectItem value="1500–2499 g">1500–2499 g</SelectItem>
+    <SelectItem value="≥2500 g">≥2500 g</SelectItem>
+  </SelectContent>
+</Select>
+
+{isPrefilled("birth_weight_category") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <div className="space-y-2">
                     <Label>Apgar Score (1 min)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="10"
-                      placeholder="Enter score (0-10)"
-                      onChange={(e) => updateFormData("apgar_1_min", Number.parseFloat(e.target.value))}
-                    />
-                  </div>
+                   <Input
+  type="number"
+  min="0"
+  max="10"
+  value={formData.apgar_1_min ?? ""}
+  className={isPrefilled("apgar_1_min") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("apgar_1_min", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("apgar_1_min") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
+</div>
 
                   <div className="space-y-2">
                     <Label>Apgar Score (5 min)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="10"
-                      placeholder="Enter score (0-10)"
-                      onChange={(e) => updateFormData("apgar_5_min", Number.parseFloat(e.target.value))}
-                    />
+<Input
+  type="number"
+  min="0"
+  max="10"
+  value={formData.apgar_5_min ?? ""}
+  className={isPrefilled("apgar_5_min") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("apgar_5_min", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("apgar_5_min") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}  
                   </div>
 
-                  <YesNoRadio field="resuscitation_required" label="Resuscitation Required" />
+                 <YesNoRadio field="resuscitation_required" label="Resuscitation Required" />
 
+{isPrefilled("resuscitation_required") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   <div className="space-y-2">
                     <Label>Neonatal Sex</Label>
-                    <Select onValueChange={(value: string) => updateFormData("neonatal_sex", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select sex" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Select
+  value={formData.neonatal_sex}
+  onValueChange={(v) => updateFormData("neonatal_sex", v)}
+>
+  <SelectTrigger
+    className={isPrefilled("neonatal_sex") ? "border-green-500" : ""}
+  >
+    <SelectValue placeholder="Select sex" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="male">Male</SelectItem>
+    <SelectItem value="female">Female</SelectItem>
+  </SelectContent>
+</Select>
+
+{isPrefilled("neonatal_sex") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
                 </div>
               </AccordionContent>
@@ -258,70 +454,132 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                   <div className="space-y-2">
                     <Label>Temperature (°C)</Label>
-                    <Input
-                      type="number"
-                      min="30"
-                      max="42"
-                      step="0.1"
-                      placeholder="Enter temperature (30-42°C)"
-                      onChange={(e) => updateFormData("temperature_celsius", Number.parseFloat(e.target.value))}
-                    />
+                   <Input
+  type="number"
+  step="0.1"
+  min="30"
+  max="42"
+  value={formData.temperature_celsius ?? ""}
+  className={isPrefilled("temperature_celsius") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("temperature_celsius", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("temperature_celsius") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Feeding Status</Label>
-                    <Select onValueChange={(value: string) => updateFormData("feeding_status", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="poor">Poor</SelectItem>
-                        <SelectItem value="absent">Absent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+  <Label>Feeding Status</Label>
 
+  <Select
+    value={formData.feeding_status}
+    onValueChange={(v) => updateFormData("feeding_status", v)}
+  >
+    <SelectTrigger
+      className={isPrefilled("feeding_status") ? "border-green-500" : ""}
+    >
+      <SelectValue placeholder="Select status" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="normal">Normal</SelectItem>
+      <SelectItem value="poor">Poor</SelectItem>
+      <SelectItem value="absent">Absent</SelectItem>
+    </SelectContent>
+  </Select>
+
+  {isPrefilled("feeding_status") && (
+    <p className="text-xs text-green-600 mt-1">
+      Prefilled from OCR
+    </p>
+  )}
+</div>
                   <div className="space-y-2">
-                    <Label>Activity Level</Label>
-                    <Select onValueChange={(value: string) => updateFormData("activity_level", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="lethargic">Lethargic</SelectItem>
-                      </SelectContent>
-                    </Select>
+                   <Select
+  value={formData.activity_level}
+  onValueChange={(v) => updateFormData("activity_level", v)}
+>
+  <SelectTrigger
+    className={isPrefilled("activity_level") ? "border-green-500" : ""}
+  >
+    <SelectValue placeholder="Select level" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="active">Active</SelectItem>
+    <SelectItem value="lethargic">Lethargic</SelectItem>
+  </SelectContent>
+</Select>
+
+{isPrefilled("activity_level") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <div className="space-y-2">
                     <Label>Respiratory Distress</Label>
-                    <Select onValueChange={(value: string) => updateFormData("respiratory_distress", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select severity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="mild">Mild</SelectItem>
-                        <SelectItem value="severe">Severe</SelectItem>
-                      </SelectContent>
-                    </Select>
+                   <Select
+  value={formData.respiratory_distress}
+  onValueChange={(v) => updateFormData("respiratory_distress", v)}
+>
+  <SelectTrigger
+    className={isPrefilled("respiratory_distress") ? "border-green-500" : ""}
+  >
+    <SelectValue placeholder="Select severity" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="none">None</SelectItem>
+    <SelectItem value="mild">Mild</SelectItem>
+    <SelectItem value="severe">Severe</SelectItem>
+  </SelectContent>
+</Select>
+
+{isPrefilled("respiratory_distress") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
                   <div className="space-y-2">
                     <Label>Heart Rate (bpm)</Label>
-                    <Input
-                      type="number"
-                      min="60"
-                      max="240"
-                      placeholder="Enter rate (60-240 bpm)"
-                      onChange={(e) => updateFormData("heart_rate_bpm", Number.parseFloat(e.target.value))}
-                    />
+                   <Input
+  type="number"
+  min="60"
+  max="240"
+  value={formData.heart_rate_bpm ?? ""}
+  className={isPrefilled("heart_rate_bpm") ? "border-green-500" : ""}
+  onChange={(e) =>
+    updateFormData("heart_rate_bpm", Number(e.target.value))
+  }
+/>
+
+{isPrefilled("heart_rate_bpm") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                   </div>
 
-                  <YesNoRadio field="apnea_present" label="Apnea Present" />
-                  <YesNoRadio field="shock_present" label="Shock Present" />
+                 <YesNoRadio field="apnea_present" label="Apnea Present" />
+
+{isPrefilled("apnea_present") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
+                 <YesNoRadio field="shock_present" label="Shock Present" />
+
+{isPrefilled("shock_present") && (
+  <p className="text-xs text-green-600 mt-1">
+    Prefilled from OCR
+  </p>
+)}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -363,7 +621,12 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                         <div className="space-y-2">
                           <Label>Appearance (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar1_appearance", value)}>
+                          <Select
+  value={formData.apgar1_appearance}
+  onValueChange={(value: string) =>
+    updateFormData("apgar1_appearance", value)
+  }
+>
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -377,7 +640,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Pulse (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar1_pulse", value)}>
+                          <Select
+  value={formData.apgar1_pulse}
+  onValueChange={(value: string) =>
+    updateFormData("apgar1_pulse", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -391,7 +660,12 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Grimace (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar1_grimace", value)}>
+                          <Select
+  value={formData.apgar1_grimace}
+  onValueChange={(value: string) =>
+    updateFormData("apgar1_grimace", value)
+  }
+>
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -405,7 +679,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Activity (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar1_activity", value)}>
+                          <Select
+  value={formData.apgar1_activity}
+  onValueChange={(value: string) =>
+    updateFormData("apgar1_activity", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -419,7 +699,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Respiration (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar1_respiration", value)}>
+                         <Select
+  value={formData.apgar1_respiration}
+  onValueChange={(value: string) =>
+    updateFormData("apgar1_respiration", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -439,7 +725,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                         <div className="space-y-2">
                           <Label>Appearance (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar5_appearance", value)}>
+                          <Select
+  value={formData.apgar5_appearance}
+  onValueChange={(value: string) =>
+    updateFormData("apgar5_appearance", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -453,7 +745,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Pulse (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar5_pulse", value)}>
+                          <Select
+  value={formData.apgar5_pulse}
+  onValueChange={(value: string) =>
+    updateFormData("apgar5_pulse", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -466,22 +764,34 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Grimace (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar5_grimace", value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select score" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">0</SelectItem>
-                              <SelectItem value="1">1</SelectItem>
-                              <SelectItem value="2">2</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+  <Label>Grimace (0–2)</Label>
+  <Select
+    value={formData.apgar5_grimace}
+    onValueChange={(value: string) =>
+      updateFormData("apgar5_grimace", value)
+    }
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Select score" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="0">0</SelectItem>
+      <SelectItem value="1">1</SelectItem>
+      <SelectItem value="2">2</SelectItem>
+    </SelectContent>
+  </Select>
+</div>
+
 
                         <div className="space-y-2">
                           <Label>Activity (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar5_activity", value)}>
+                          <Select
+  value={formData.apgar5_activity}
+  onValueChange={(value: string) =>
+    updateFormData("apgar5_activity", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>
@@ -495,7 +805,13 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
                         <div className="space-y-2">
                           <Label>Respiration (0–2)</Label>
-                          <Select onValueChange={(value: string) => updateFormData("apgar5_respiration", value)}>
+                          <Select
+  value={formData.apgar5_respiration}
+  onValueChange={(value: string) =>
+    updateFormData("apgar5_respiration", value)
+  }
+>
+
                             <SelectTrigger>
                               <SelectValue placeholder="Select score" />
                             </SelectTrigger>

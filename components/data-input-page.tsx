@@ -9,6 +9,7 @@ import { useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { UserRole } from "@/lib/rbac"
 import { useRouter } from "next/navigation"
+import { useOCR } from "@/context/ocr-context"
 
 interface DataInputPageProps {
   onManualEntry: () => void
@@ -71,6 +72,9 @@ const fileToBase64 = (file: File): Promise<string> => {
 export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
   const router = useRouter()
   const { userProfile } = useAuth()
+
+  const { setOcrText } = useOCR()
+
   const structuredFileInputRef = useRef<HTMLInputElement>(null)
   const unstructuredFileInputRef = useRef<HTMLInputElement>(null)
   const [isProcessingStructured, setIsProcessingStructured] = useState(false)
@@ -135,8 +139,6 @@ try {
   }
 
   const data = await res.json()
-
-  console.log("OCR TEXT:", data.text)
 
   alert(
     `File "${file.name}" processed with OCR. Redirecting to form with extracted data.`,
@@ -218,7 +220,7 @@ try {
   }
 
   const data = await res.json()
-  console.log("OCR TEXT:", data.text)
+  setOcrText(data.text)
 
   alert("OCR processing complete. Redirecting to form with extracted data.")
   onManualEntry()
