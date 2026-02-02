@@ -127,7 +127,7 @@ export default function ClinicianDashboard() {
             <p className="text-gray-600 mt-1">Dr. {userProfile.name} • {userProfile.designation}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/')}>New Assessment</Button>
+            <Button variant="outline" onClick={() => router.push('/?startAssessment=true')}>New Assessment</Button>
             <Button variant="outline" onClick={signOut}>Sign Out</Button>
           </div>
         </div>
