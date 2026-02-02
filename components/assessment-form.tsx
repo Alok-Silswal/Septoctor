@@ -51,6 +51,12 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
   const [formData, setFormData] = useState<Partial<AssessmentData>>({})
   const [prefillData, setPrefillData] = useState<Partial<AssessmentData>>({})
   
+  // ========================================
+  // FIX: Local state for numeric inputs
+  // ========================================
+  const [birthWeightInput, setBirthWeightInput] = useState<number | null>(null)
+  const [gestAgeInput, setGestAgeInput] = useState<number | null>(null)
+  
   const isPrefilled = (field: keyof AssessmentData) =>
     prefillData[field] !== undefined && formData[field] === prefillData[field]
   
@@ -72,6 +78,23 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
         ...prefillData,
       }))
       prefillAppliedRef.current = true
+    }
+  }, [prefillData])
+
+  // ========================================
+  // FIX: Sync OCR → numeric inputs
+  // ========================================
+  useEffect(() => {
+    if (prefillData.birth_weight_category) {
+      if (prefillData.birth_weight_category === "<1500 g") setBirthWeightInput(1200)
+      else if (prefillData.birth_weight_category === "1500–2499 g") setBirthWeightInput(2000)
+      else setBirthWeightInput(3000)
+    }
+
+    if (prefillData.gestational_age_category) {
+      if (prefillData.gestational_age_category === "<34 weeks") setGestAgeInput(32)
+      else if (prefillData.gestational_age_category === "34–36 weeks") setGestAgeInput(35)
+      else setGestAgeInput(38)
     }
   }, [prefillData])
 
@@ -304,17 +327,22 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
               </AccordionTrigger>
               <AccordionContent className="space-y-4 md:space-y-6 pt-4">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                  {/* ========================================
+                      FIX: Birth Weight Input - Now Editable
+                      ======================================== */}
                   <div className="space-y-2">
                     <Label>Birth Weight (grams)</Label>
                     <Input
                       type="number"
                       min="300"
                       max="6000"
-                      placeholder="Enter grams (300-6000)"
-                      value={formData.birth_weight_category ? "" : ""}
+                      placeholder="Enter grams (300–6000)"
+                      value={birthWeightInput ?? ""}
                       className={isPrefilled("birth_weight_category") ? "border-green-500" : ""}
                       onChange={(e) => {
                         const bw = e.target.value === "" ? null : Number(e.target.value)
+                        setBirthWeightInput(bw)
+
                         let category: string | null = null
                         if (bw !== null) {
                           if (bw < 1500) category = "<1500 g"
@@ -329,6 +357,9 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                     )}
                   </div>
 
+                  {/* ========================================
+                      FIX: Gestational Age Input - Now Editable
+                      ======================================== */}
                   <div className="space-y-2">
                     <Label>Gestational Age (weeks)</Label>
                     <Input
@@ -336,10 +367,12 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       min="22"
                       max="44"
                       step="0.1"
-                      value={formData.gestational_age_category ? "" : ""}
+                      value={gestAgeInput ?? ""}
                       className={isPrefilled("gestational_age_category") ? "border-green-500" : ""}
                       onChange={(e) => {
                         const ga = e.target.value === "" ? null : Number(e.target.value)
+                        setGestAgeInput(ga)
+
                         let category: string | null = null
                         if (ga !== null) {
                           if (ga < 34) category = "<34 weeks"
