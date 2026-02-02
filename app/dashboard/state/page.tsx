@@ -342,39 +342,6 @@ export default function StateAdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="hospitals">
-            <Card>
-              <CardHeader>
-                <CardTitle>Hospitals in {userProfile.state}</CardTitle>
-                <CardDescription>Complete list with bed capacity information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader><TableRow><TableHead>Hospital Name</TableHead><TableHead>Address</TableHead><TableHead>Total Beds</TableHead><TableHead>NICU Beds</TableHead><TableHead>Contact</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {hospitals.map((hospital) => (
-                      <TableRow key={hospital.id}>
-                        <TableCell className="font-medium">{hospital.name}</TableCell>
-                        <TableCell className="text-sm">{hospital.address}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="font-mono">
-                            {hospital.totalBeds || 0}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="font-mono">
-                            {hospital.nicuBeds || 0}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600">{hospital.contactNumber || 'N/A'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="patients">
             <Card>
               <CardHeader>
