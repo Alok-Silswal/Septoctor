@@ -82,7 +82,7 @@ export default function SeptoctorApp() {
   const [riskScore, setRiskScore] = useState<number | null>(null)
 
   // Auto-redirect only pure admin users to their dashboards
-  // Hospital admins and clinicians get to choose between dashboard and assessment workflow
+  // Hospital admins and clinicians get to choose between the dashboard and assessment workflow
   useEffect(() => {
     if (authLoading) return
     
