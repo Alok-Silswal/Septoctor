@@ -7,17 +7,22 @@ let auth: any
 let db: any
 
 function initFirebase() {
+  // 🚫 Prevent Firebase from running during build / SSR
+  if (typeof window === "undefined") {
+    return { app: null, auth: null, db: null }
+  }
+
   if (app) return { app, auth, db }
 
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
-    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
-  }
+ const firebaseConfig = {
+  apiKey: "AIzaSyC-fkyxIV20z8DCqSL8BodEzDdDezbjFVE",
+  authDomain: "septoctor-cf82c.firebaseapp.com",
+  projectId: "septoctor-cf82c",
+  storageBucket: "septoctor-cf82c.firebasestorage.app",
+  messagingSenderId: "935827613646",
+  appId: "1:935827613646:web:bce68f9ae5e95ff84aed9f",
+  measurementId: "G-R4SPSD8MZX",
+}
 
   app = getApps().length ? getApp() : initializeApp(firebaseConfig)
   auth = getAuth(app)
@@ -26,7 +31,12 @@ function initFirebase() {
   return { app, auth, db }
 }
 
-const googleProvider = new GoogleAuthProvider()
-googleProvider.setCustomParameters({ prompt: "select_account" })
+// ✅ Provider must also be client-only
+let googleProvider: GoogleAuthProvider | null = null
+
+if (typeof window !== "undefined") {
+  googleProvider = new GoogleAuthProvider()
+  googleProvider.setCustomParameters({ prompt: "select_account" })
+}
 
 export { initFirebase, googleProvider }
