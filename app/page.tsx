@@ -11,8 +11,6 @@ import { DoctorInteractionPage } from "@/components/doctor-interaction-page"
 import { FinalPage } from "@/components/final-page"
 import { useAuth } from "@/hooks/use-auth"
 import { UserRole } from "@/lib/rbac"
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { initFirebase } from '@/lib/firebase'
 
 export interface AssessmentData {
   
@@ -82,9 +80,6 @@ export default function SeptoctorApp() {
   const [userCredentials, setUserCredentials] = useState<LoginCredentials | null>(null)
   const [assessmentData, setAssessmentData] = useState<Partial<AssessmentData>>({})
   const [riskScore, setRiskScore] = useState<number | null>(null)
-  const [patientId, setPatientId] = useState<string | null>(null)
-  const [diagnosisId, setDiagnosisId] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
 
   // Auto-redirect only pure admin users to their dashboards
   // Hospital admins and clinicians get to choose between dashboard and assessment workflow
@@ -113,115 +108,17 @@ export default function SeptoctorApp() {
     setCurrentPage(page)
   }
 
-  const handleAssessmentSubmit = async (data: AssessmentData) => {
+  const handleAssessmentSubmit = (data: AssessmentData) => {
     setAssessmentData(data)
     setCurrentPage(4) // Processing page
-    setIsSaving(true)
 
-    try {
-      // Calculate risk score (mock for now)
+    // Simulate AI processing
+    setTimeout(() => {
+      // Mock risk calculation
       const mockRiskScore = Math.floor(Math.random() * 100)
       setRiskScore(mockRiskScore)
-
-      // Determine risk status
-      const riskStatus = mockRiskScore >= 70 ? 'critical' : mockRiskScore >= 40 ? 'high-risk' : mockRiskScore >= 20 ? 'moderate' : 'stable'
-
-      // Save patient data to Firestore if user is authenticated
-      if (userProfile) {
-        // Initialize Firebase
-        const { db } = initFirebase()
-        
-        console.log('Firebase initialized, db:', !!db)
-        console.log('User profile:', { uid: userProfile.uid, hospitalId: userProfile.hospitalId, state: userProfile.state })
-        
-        if (!db) {
-          throw new Error('Firebase database not initialized')
-        }
-
-        // Create patient record
-        const patientData = {
-          name: `Patient-${Date.now()}`, // Generate patient name or get from form
-          age: 1, // Get from form data if available
-          gender: data.neonatal_sex === 'male' ? 'male' : 'female',
-          hospitalId: userProfile.hospitalId || 'unknown',
-          assignedDoctorId: userProfile.uid,
-          riskScore: mockRiskScore / 100,
-          status: riskStatus,
-          state: userProfile.state || 'unknown',
-          admissionDate: serverTimestamp(),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }
-
-        console.log('Attempting to save patient data:', patientData)
-        const patientRef = await addDoc(collection(db, 'patients'), patientData)
-        setPatientId(patientRef.id)
-        console.log('Patient saved with ID:', patientRef.id)
-
-        // Create diagnosis record
-        const diagnosisData = {
-          patientId: patientRef.id,
-          patientName: patientData.name,
-          doctorId: userProfile.uid,
-          doctorName: userProfile.name,
-          hospitalId: userProfile.hospitalId || 'unknown',
-          state: userProfile.state || 'unknown',
-          diagnosisType: 'neonatal_sepsis_assessment',
-          severity: riskStatus,
-          diagnosisSummary: `Neonatal sepsis risk assessment with ${mockRiskScore}% risk score`,
-          detailedNotes: JSON.stringify(data, null, 2),
-          neonatalMetrics: {
-            heartRate: data.heart_rate_bpm,
-            respiratoryRate: data.respiratory_distress === 'yes' ? 60 : 40,
-            temperature: data.temperature_celsius,
-            oxygenSaturation: 95
-          },
-          labResults: {
-            wbcCount: data.hss_tlc_abnormal === 'yes' ? 25000 : 12000,
-            cReactiveProtein: 15,
-            bloodCulture: 'Pending'
-          },
-          treatmentPlan: `Risk assessment completed. ${mockRiskScore >= 70 ? 'Immediate intervention required.' : 'Monitor closely and follow standard protocols.'}`,
-          prescriptions: mockRiskScore >= 70 ? ['Antibiotics', 'IV fluids', 'Oxygen support'] : ['Monitoring', 'Supportive care'],
-          status: 'active',
-          diagnosisDate: serverTimestamp(),
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          mlPrediction: {
-            riskScore: mockRiskScore / 100,
-            prediction: riskStatus,
-            confidence: 0.85 + Math.random() * 0.1
-          }
-        }
-
-        const diagnosisRef = await addDoc(collection(db, 'diagnoses'), diagnosisData)
-        setDiagnosisId(diagnosisRef.id)
-        console.log('Diagnosis saved with ID:', diagnosisRef.id)
-      }
-
-      // Move to results page after saving
-      setTimeout(() => {
-        setIsSaving(false)
-        setCurrentPage(5) // Results page
-      }, 2000)
-    } catch (error) {
-      console.error('Error saving patient data:', error)
-      console.error('Error details:', {
-        message: (error as any)?.message,
-        code: (error as any)?.code,
-        stack: (error as any)?.stack,
-        userProfile: userProfile
-      })
-      setIsSaving(false)
-      
-      const errorMessage = (error as any)?.message || 'Unknown error occurred'
-      alert(`Failed to save patient data: ${errorMessage}. Please check the console for details.`)
-      
-      // Still show results even if save fails
-      setTimeout(() => {
-        setCurrentPage(5)
-      }, 1000)
-    }
+      setCurrentPage(5) // Results page
+    }, 3000)
   }
 
   const renderCurrentPage = () => {
@@ -257,18 +154,7 @@ export default function SeptoctorApp() {
           />
         );
       case 7:
-        return <FinalPage 
-          onRestart={() => {
-            setPatientId(null)
-            setDiagnosisId(null)
-            setAssessmentData({})
-            setRiskScore(null)
-            handlePageChange(2)
-          }} 
-          onBack={() => handlePageChange(5)}
-          patientId={patientId}
-          diagnosisId={diagnosisId}
-        />
+        return <FinalPage onRestart={() => handlePageChange(2)} onBack={() => handlePageChange(5)} />
       default:
         return <DataInputPage onManualEntry={() => handlePageChange(3)} onBack={() => {
           setIsLoggedIn(false)
