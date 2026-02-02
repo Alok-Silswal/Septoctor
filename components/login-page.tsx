@@ -16,7 +16,6 @@ import {
 import { Mail, Loader2 } from "lucide-react"
 import { initFirebase, googleProvider } from "@/lib/firebase"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
-import { doc, getDoc } from "firebase/firestore"
 import { toast } from "sonner"
 
 interface LoginPageProps {
@@ -30,7 +29,7 @@ export type LoginCredentials = {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const { auth, db } = initFirebase()
+  const { auth } = initFirebase()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [position, setPosition] = useState("")
@@ -47,49 +46,10 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return
     }
 
-    if (!position) {
-      setError("Please select your role")
-      return
-    }
-
     setLoading(true)
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      
-      // Fetch user profile from Firestore to validate role
-      const userDocRef = doc(db, 'users', user.uid)
-      const userDoc = await getDoc(userDocRef)
-      
-      if (!userDoc.exists()) {
-        await auth.signOut()
-        setError("User profile not found. Please contact administrator.")
-        toast.error("Login Failed", {
-          description: "User profile not found in the system."
-        })
-        setLoading(false)
-        return
-      }
-      
-      const userData = userDoc.data()
-      const assignedRole = userData.role
-      
-      // Validate that selected role matches assigned role
-      if (assignedRole !== position) {
-        await auth.signOut()
-        const roleNames: { [key: string]: string } = {
-          'SUPER_ADMIN': 'National Admin',
-          'STATE_ADMIN': 'State Health Admin',
-          'HOSPITAL_ADMIN': 'Hospital HoD',
-          'CLINICIAN': 'Doctor/Clinician'
-        }
-        setError(`Access denied. Your account is registered as ${roleNames[assignedRole] || assignedRole}. Please select the correct role.`)
-        toast.error("Role Mismatch", {
-          description: `You are registered as ${roleNames[assignedRole]}. Please select the correct role to login.`
-        })
-        setLoading(false)
-        return
-      }
       
       toast.success("Login successful!", {
         description: `Welcome back, ${user.email}`
@@ -119,15 +79,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   const handleGoogleLogin = async () => {
     setError("")
-    
-    if (!position) {
-      setError("Please select your role before signing in with Google")
-      toast.error("Role Required", {
-        description: "Please select your role from the dropdown first"
-      })
-      return
-    }
-    
     setGoogleLoading(true)
     
     try {
@@ -135,48 +86,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       const credential = GoogleAuthProvider.credentialFromResult(result)
       const user = result.user
       
-      // Fetch user profile from Firestore to validate role
-      const userDocRef = doc(db, 'users', user.uid)
-      const userDoc = await getDoc(userDocRef)
-      
-      if (!userDoc.exists()) {
-        await auth.signOut()
-        setError("User profile not found. Please contact administrator.")
-        toast.error("Login Failed", {
-          description: "User profile not found in the system."
-        })
-        setGoogleLoading(false)
-        return
-      }
-      
-      const userData = userDoc.data()
-      const assignedRole = userData.role
-      
-      // Validate that selected role matches assigned role
-      if (assignedRole !== position) {
-        await auth.signOut()
-        const roleNames: { [key: string]: string } = {
-          'SUPER_ADMIN': 'National Admin',
-          'STATE_ADMIN': 'State Health Admin',
-          'HOSPITAL_ADMIN': 'Hospital HoD',
-          'CLINICIAN': 'Doctor/Clinician'
-        }
-        setError(`Access denied. Your account is registered as ${roleNames[assignedRole] || assignedRole}. Please select the correct role.`)
-        toast.error("Role Mismatch", {
-          description: `You are registered as ${roleNames[assignedRole]}. Please select the correct role to login.`
-        })
-        setGoogleLoading(false)
-        return
-      }
-      
       toast.success("Login successful!", {
         description: `Welcome, ${user.displayName || user.email}`
       })
       
+      // Auto-select position if not set
+      const defaultPosition = position || "doctor"
+      
       onLogin({ 
         email: user.email || "", 
         password: "", 
-        position: position 
+        position: defaultPosition 
       })
     } catch (err: any) {
       console.error("Google login error:", err)
@@ -256,26 +176,23 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               />
             </div>
 
-            {/* Position Field */}
-            <div className="space-y-2">
+            {/* Position Field - COMMENTED OUT FOR DEMO */}
+            {/* <div className="space-y-2">
               <Label htmlFor="position" className="text-sm font-medium text-gray-700">
-                User Role <span className="text-red-500">*</span>
+                User Role
               </Label>
               <Select value={position} onValueChange={setPosition}>
                 <SelectTrigger className="h-11 bg-gray-50 border-gray-200 focus:border-cyan-500 focus:ring-cyan-500">
-                  <SelectValue placeholder="Select your role" />
+                  <SelectValue placeholder="Select your position" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SUPER_ADMIN">National Admin</SelectItem>
                   <SelectItem value="STATE_ADMIN">State Health Admin</SelectItem>
                   <SelectItem value="HOSPITAL_ADMIN">Hospital HoD</SelectItem>
-                  <SelectItem value="CLINICIAN">Doctor/Clinician</SelectItem>
+                  <SelectItem value="CLINICIAN">Doctor</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
-                ⚠️ Select the role assigned to your account
-              </p>
-            </div>
+            </div> */}
 
             {/* Error Message */}
             {error && (
