@@ -35,9 +35,11 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
   const [formData, setFormData] = useState<Partial<AssessmentData>>({})
   const [prefillData, setPrefillData] = useState<Partial<AssessmentData>>({})
+
   const isPrefilled = (field: keyof AssessmentData) =>
   prefillData[field] !== undefined &&
   formData[field] === prefillData[field]
+
   const [openSections, setOpenSections] = useState<string[]>(["neonatal-info"])
   useEffect(() => {
   if (ocrText) {
