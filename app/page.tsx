@@ -13,9 +13,6 @@ import { DoctorInteractionPage } from "@/components/doctor-interaction-page"
 import { FinalPage } from "@/components/final-page"
 import { useAuth } from "@/hooks/use-auth"
 import { UserRole } from "@/lib/rbac"
-import { saveAssessmentAsDiagnosis } from "@/lib/firebase-utils"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
-import { initFirebase } from "@/lib/firebase"
 
 export interface AssessmentData {
   
@@ -122,11 +119,16 @@ export default function SeptoctorApp() {
     setSaving(true)
 
     try {
+      // Dynamic imports to ensure client-side only execution
+      const { initFirebase } = await import("@/lib/firebase")
+      const { collection, addDoc, serverTimestamp } = await import("firebase/firestore")
+      const { saveAssessmentAsDiagnosis } = await import("@/lib/firebase-utils")
+      
       // Get Firebase instance
       const { db } = initFirebase()
       
       if (!db) {
-        throw new Error("Firebase not initialized")
+        throw new Error("Firebase not initialized - please refresh the page")
       }
 
       if (!userProfile) {
@@ -143,7 +145,7 @@ export default function SeptoctorApp() {
         hospitalId: userProfile.hospitalId || "unknown",
         assignedDoctorId: userProfile.uid,
         assignedDoctorName: userProfile.name,
-        dateOfBirth: new Date(), // You may want to collect this from the form
+        dateOfBirth: new Date(),
         gender: data.neonatal_sex || "unknown",
         status: "active",
         createdAt: serverTimestamp(),
