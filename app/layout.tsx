@@ -12,7 +12,6 @@ import "./globals.css"
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-export const runtime = 'edge';
 
 export const metadata: Metadata = {
   title: "Septoctor - AI Driven Sepsis Prediction",

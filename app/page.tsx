@@ -224,7 +224,7 @@ export default function SeptoctorApp() {
           console.error("Error updating diagnosis with risk score:", updateError)
           // Results already shown, just log the error
         }
-      }, 100)
+      }, 2000) // Delay update to after results are shown
 
     } catch (error: any) {
       console.error("Error saving assessment:", error)
