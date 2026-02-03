@@ -124,15 +124,15 @@ const isHighRisk = (riskScore || 0) > 60
             </div>
           </div>
 
-         <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
-  <Button
-    onClick={onFinalPage}
-    className="bg-gradient-to-r from-primary to-accent min-h-[44px] w-full sm:w-auto"
-  >
-    View Full Report
-  </Button>
-</div>
-
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
+            
+            <Button
+              onClick={onFinalPage}
+              className="bg-gradient-to-r from-primary to-accent min-h-[44px] w-full sm:w-auto"
+            >
+              View Full Report
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
