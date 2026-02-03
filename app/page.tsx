@@ -182,25 +182,30 @@ export default function SeptoctorApp() {
       setDiagnosisId(diagId)
       console.log("Diagnosis saved with ID:", diagId)
 
-      // Simulate AI processing and update diagnosis with risk score
+      // Calculate risk score immediately
+      const mockRiskScore = Math.floor(Math.random() * 100)
+      setRiskScore(mockRiskScore)
+
+      // Determine severity based on risk score
+      let severity = "low-risk"
+      let status = "active"
+      if (mockRiskScore >= 70) {
+        severity = "critical"
+      } else if (mockRiskScore >= 50) {
+        severity = "high-risk"
+      } else if (mockRiskScore >= 30) {
+        severity = "moderate"
+      }
+
+      // Show results immediately after 1 second
+      setTimeout(() => {
+        setSaving(false)
+        setCurrentPage(5) // Results page
+      }, 1000)
+
+      // Update diagnosis in background (non-blocking)
       setTimeout(async () => {
         try {
-          // Mock risk calculation
-          const mockRiskScore = Math.floor(Math.random() * 100)
-          setRiskScore(mockRiskScore)
-
-          // Determine severity based on risk score
-          let severity = "low-risk"
-          let status = "active"
-          if (mockRiskScore >= 70) {
-            severity = "critical"
-          } else if (mockRiskScore >= 50) {
-            severity = "high-risk"
-          } else if (mockRiskScore >= 30) {
-            severity = "moderate"
-          }
-
-          // Update the diagnosis with risk score and severity
           const { updateDiagnosis } = await import("@/lib/firebase-utils")
           await updateDiagnosis(diagId, {
             severity: severity,
@@ -214,17 +219,12 @@ export default function SeptoctorApp() {
               : "Low risk detected. Continue routine monitoring.",
             detailedNotes: `AI-assisted sepsis risk assessment completed. Risk score: ${mockRiskScore}%. Assessment based on ${Object.keys(data).length} clinical parameters.`,
           })
-
           console.log("Diagnosis updated with risk score:", mockRiskScore)
-          setSaving(false)
-          setCurrentPage(5) // Results page
         } catch (updateError: any) {
           console.error("Error updating diagnosis with risk score:", updateError)
-          // Still show results even if update fails
-          setSaving(false)
-          setCurrentPage(5)
+          // Results already shown, just log the error
         }
-      }, 3000)
+      }, 100)
 
     } catch (error: any) {
       console.error("Error saving assessment:", error)
