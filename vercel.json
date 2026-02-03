@@ -1,0 +1,6 @@
+{
+  "buildCommand": "NODE_OPTIONS='--no-warnings' npm run build",
+  "env": {
+    "NODE_OPTIONS": "--no-warnings"
+  }
+}
