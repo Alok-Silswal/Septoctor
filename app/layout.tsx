@@ -9,9 +9,6 @@ import { OCRProvider } from "@/context/ocr-context"
 
 import "./globals.css"
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export const metadata: Metadata = {
   title: "Septoctor - AI Driven Sepsis Prediction",
   description: "AI-powered neonatal sepsis prediction and risk scoring tool",
