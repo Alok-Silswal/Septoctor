@@ -1,8 +1,7 @@
 'use client';
-
-export const dynamic = 'force-dynamic';
-
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/lib/rbac';
@@ -14,7 +13,15 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Download, ArrowLeft } from 'lucide-react';
 
-export default function HospitalAdminDashboard() {
+export default function HospitalDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <HospitalDashboardInner />
+    </Suspense>
+  );
+}
+
+function HospitalDashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewHospitalId = searchParams.get('hospitalId');
