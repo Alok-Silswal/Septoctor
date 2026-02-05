@@ -4,17 +4,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { AlertTriangle, CheckCircle, Brain, TrendingUp, MessageCircle, ArrowLeft } from "lucide-react"
+import { AlertTriangle, CheckCircle, Brain, TrendingUp, ArrowLeft } from "lucide-react"
+
 
 interface ResultsPageProps {
   riskScore: number | null
-  onDoctorInteraction: () => void
   onFinalPage: () => void
   onBack: () => void
 }
 
-export function ResultsPage({ riskScore, onDoctorInteraction, onFinalPage, onBack }: ResultsPageProps) {
-  const isHighRisk = (riskScore || 0) > 60
+export function ResultsPage({ riskScore, onFinalPage, onBack }: ResultsPageProps) {
+const isHighRisk = (riskScore || 0) > 60
   const riskLevel = isHighRisk ? "High Risk" : "Low Risk"
   const riskColor = isHighRisk ? "text-medical-danger" : "text-medical-success"
   const RiskIcon = isHighRisk ? AlertTriangle : CheckCircle
@@ -125,14 +125,7 @@ export function ResultsPage({ riskScore, onDoctorInteraction, onFinalPage, onBac
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center">
-            <Button
-              onClick={onDoctorInteraction}
-              variant="outline"
-              className="flex items-center bg-transparent min-h-[44px] w-full sm:w-auto"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Ask Septoctor
-            </Button>
+            
             <Button
               onClick={onFinalPage}
               className="bg-gradient-to-r from-primary to-accent min-h-[44px] w-full sm:w-auto"
