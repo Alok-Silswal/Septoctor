@@ -29,12 +29,10 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   const handleSend = async () => {
@@ -68,11 +66,14 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
         }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to get response")
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("RATE_LIMIT")
+        }
+        throw new Error(data.error || "Failed to get response")
+      }
 
       const assistantMessage: Message = {
         role: "assistant",
@@ -83,9 +84,20 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
       setMessages(prev => [...prev, assistantMessage])
     } catch (error) {
       console.error("Chat error:", error)
+      
+      let errorMsg = "Sorry, I encountered an error. Please try again."
+      
+      if (error instanceof Error) {
+        if (error.message === "RATE_LIMIT") {
+          errorMsg = "⏳ Rate limit reached. Google Gemini has request limits. Please wait 2-3 minutes and try again."
+        } else {
+          errorMsg = `Sorry, I encountered an error: ${error.message}`
+        }
+      }
+      
       const errorMessage: Message = {
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
+        content: errorMsg,
         timestamp: new Date()
       }
       setMessages(prev => [...prev, errorMessage])
@@ -102,7 +114,7 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
   }
 
   return (
-    <Card className={cn("flex flex-col h-[600px]", className)}>
+    <Card className={cn("flex flex-col h-[600px] overflow-hidden", className)}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
@@ -112,9 +124,9 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
           Ask questions about the risk assessment and patient data
         </p>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col p-4 gap-4">
-        <ScrollArea ref={scrollRef} className="flex-1 pr-4">
-          <div className="space-y-4">
+      <CardContent className="flex-1 flex flex-col p-4 gap-4 overflow-hidden min-h-0">
+        <ScrollArea className="flex-1 pr-4">
+          <div className="space-y-4 pb-4">
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -139,13 +151,13 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
                 </div>
                 <div
                   className={cn(
-                    "rounded-lg p-3 max-w-[80%]",
+                    "rounded-lg p-3 max-w-[80%] break-words overflow-wrap-anywhere",
                     message.role === "user"
                       ? "bg-blue-500 text-white"
                       : "bg-muted"
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   <p
                     className={cn(
                       "text-xs mt-1",
@@ -167,10 +179,11 @@ export function AIChatAssistant({ patientContext, className }: AIChatAssistantPr
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0 relative z-10">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}

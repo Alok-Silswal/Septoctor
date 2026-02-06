@@ -9,11 +9,12 @@ import { AlertTriangle, CheckCircle, Brain, TrendingUp, ArrowLeft } from "lucide
 
 interface ResultsPageProps {
   riskScore: number | null
+  onDoctorInteraction: () => void
   onFinalPage: () => void
   onBack: () => void
 }
 
-export function ResultsPage({ riskScore, onFinalPage, onBack }: ResultsPageProps) {
+export function ResultsPage({ riskScore, onDoctorInteraction, onFinalPage, onBack }: ResultsPageProps) {
 const isHighRisk = (riskScore || 0) > 60
   const riskLevel = isHighRisk ? "High Risk" : "Low Risk"
   const riskColor = isHighRisk ? "text-medical-danger" : "text-medical-success"

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const { message, conversationHistory, patientContext } = await req.json();
+
+    console.log('Chat API called with message:', message);
+    console.log('Conversation history length:', conversationHistory?.length || 0);
+    console.log('Patient context size:', JSON.stringify(patientContext || {}).length, 'chars');
 
     if (!message) {
       return NextResponse.json(
@@ -12,6 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
+    console.log('API Key exists:', !!apiKey);
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Gemini API key not configured' },
@@ -19,11 +27,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build the conversation context
+    // Build the conversation context - limit patient context to avoid token overflow
+    const compactContext = patientContext ? {
+      scores: patientContext.scores,
+      riskLevel: patientContext.riskLevel,
+      keyFindings: patientContext.keyFindings
+    } : null;
+
     const systemPrompt = `You are a medical AI assistant specialized in neonatal sepsis analysis. You're helping doctors interpret ML-generated risk assessment reports.
 
-${patientContext ? `Current Patient Context:
-${JSON.stringify(patientContext, null, 2)}` : ''}
+${compactContext ? `Current Patient Context:
+${JSON.stringify(compactContext, null, 2)}` : ''}
 
 Your role:
 - Answer questions about the sepsis risk assessment
@@ -46,15 +60,17 @@ Be concise, clear, and evidence-based in your responses.`;
       }
     ];
 
-    // Add conversation history
-    if (conversationHistory && conversationHistory.length > 0) {
-      conversationHistory.forEach((msg: { role: string; content: string }) => {
-        contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }]
-        });
+    // Add conversation history - limit to last 6 messages to prevent token overflow
+    const recentHistory = conversationHistory && conversationHistory.length > 0 
+      ? conversationHistory.slice(-6) 
+      : [];
+    
+    recentHistory.forEach((msg: { role: string; content: string }) => {
+      contents.push({
+        role: msg.role === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
       });
-    }
+    });
 
     // Add current message
     contents.push({
@@ -62,41 +78,46 @@ Be concise, clear, and evidence-based in your responses.`;
       parts: [{ text: message }]
     });
 
+    const requestBody = {
+      contents: contents,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        }
+      ]
+    };
+
+    console.log('Request body size:', JSON.stringify(requestBody).length, 'chars');
+    console.log('Total messages in context:', contents.length);
+
     // Call Gemini API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          contents: contents,
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          },
-          safetySettings: [
-            {
-              category: 'HARM_CATEGORY_HARASSMENT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_HATE_SPEECH',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            },
-            {
-              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-              threshold: 'BLOCK_MEDIUM_AND_ABOVE'
-            }
-          ]
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 

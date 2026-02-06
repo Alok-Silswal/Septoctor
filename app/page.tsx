@@ -75,7 +75,7 @@ export interface AssessmentData {
 export default function SeptoctorApp() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const { userProfile, loading: authLoading } = useAuth()
+  const { userProfile, loading: authLoading, signOut } = useAuth()
   const [currentPage, setCurrentPage] = useState(0) // Start at 0 for login
   const [assessmentData, setAssessmentData] = useState<Partial<AssessmentData>>({})
   const [riskScore, setRiskScore] = useState<number | null>(null)
@@ -291,8 +291,7 @@ export default function SeptoctorApp() {
         />
       default:
         return <DataInputPage onManualEntry={() => handlePageChange(3)} onBack={() => {
-          setIsLoggedIn(false)
-          setCurrentPage(0)
+          signOut()
         }} />
     }
   }
