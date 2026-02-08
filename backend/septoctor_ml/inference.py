@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import shap
 from pathlib import Path
+from backend.monitoring.logger import log_current_data
 
 from septoctor_ml.feature_mapper import map_ui_to_model
 
@@ -78,6 +79,8 @@ def predict_with_explainability(raw_input: dict) -> dict:
 
     # ---- Step 3: probability ----
     p = float(model.predict_proba(X)[0, 1])
+    # ---- Step 3.1: log model input for drift detection ----
+    log_current_data(X)
 
     # ---- Step 4: binary decision ----
     sepsis_label = int(p >= KS_THRESHOLD)

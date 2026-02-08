@@ -182,3 +182,9 @@ notebooks/**/*.ipynb
 *.md
 !README.md
 # README.md is kept for repository overview
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
