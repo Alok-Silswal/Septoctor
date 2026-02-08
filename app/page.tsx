@@ -331,6 +331,8 @@ export default function SeptoctorApp() {
           onBack={() => handlePageChange(5)}
           patientId={patientId}
           diagnosisId={diagnosisId}
+          mlPrediction={mlPrediction}
+          assessmentData={assessmentData}
         />
       default:
         return <DataInputPage onManualEntry={() => handlePageChange(3)} onBack={() => {
