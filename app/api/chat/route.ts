@@ -7,9 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const { message, conversationHistory, patientContext } = await req.json();
 
-    console.log('Chat API called with message:', message);
-    console.log('Conversation history length:', conversationHistory?.length || 0);
-    console.log('Patient context size:', JSON.stringify(patientContext || {}).length, 'chars');
+    console.log('Chat API called with message:', message.substring(0, 50));
 
     if (!message) {
       return NextResponse.json(
@@ -27,21 +25,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build the conversation context - limit patient context to avoid token overflow
-    const compactContext = patientContext ? {
-      scores: patientContext.scores,
-      riskLevel: patientContext.riskLevel,
-      keyFindings: patientContext.keyFindings
-    } : null;
+    // Build the conversation context — include full SHAP data for explainability
+    const mlPred = patientContext?.mlPrediction ?? null
+    const shapAll = patientContext?.shapAllFeatures ?? []
+    const shapExpected = patientContext?.shapExpectedValue ?? null
+
+    // Build a concise SHAP table for the prompt
+    const shapTable =
+      shapAll.length > 0
+        ? shapAll
+            .map(
+              (f: { display_name: string; impact: number }) =>
+                `${f.display_name}: ${f.impact > 0 ? "+" : ""}${f.impact.toFixed(4)}`
+            )
+            .join("\n")
+        : "Not available"
 
     const systemPrompt = `You are a medical AI assistant specialized in neonatal sepsis analysis. You're helping doctors interpret ML-generated risk assessment reports.
 
-${compactContext ? `Current Patient Context:
-${JSON.stringify(compactContext, null, 2)}` : ''}
+${mlPred ? `ML Prediction Summary:
+- Sepsis Probability: ${(mlPred.sepsis_probability * 100).toFixed(1)}%
+- Sepsis Label: ${mlPred.sepsis_label === 1 ? "Yes" : "No"}
+- Risk Category: ${mlPred.risk_bucket}
+- Confidence: ${(mlPred.confidence * 100).toFixed(1)}%` : ""}
+
+${shapExpected !== null ? `SHAP Baseline (expected) Value: ${shapExpected}` : ""}
+
+SHAP Feature Contributions (all features, sorted by absolute impact):
+Positive values push prediction TOWARDS sepsis, negative push AWAY from sepsis.
+${shapTable}
+
+${patientContext ? `Patient Assessment Data (raw inputs):
+${JSON.stringify(
+  Object.fromEntries(
+    Object.entries(patientContext).filter(
+      ([k]) => !["mlPrediction", "shapAllFeatures", "shapExpectedValue", "riskScore"].includes(k)
+    )
+  ),
+  null,
+  2
+)}` : ""}
 
 Your role:
-- Answer questions about the sepsis risk assessment
-- Explain medical scores and risk factors
+- Answer questions about the sepsis risk assessment and SHAP explainability
+- When doctors ask "why", refer to the SHAP contributions above
+- Explain which features contributed most to the prediction and by how much
+- Explain that SHAP values represent how much each feature pushed the prediction above or below the baseline
 - Provide clinical insights based on the data
 - Suggest potential interventions or monitoring strategies
 - Always remind doctors that you're an AI assistant and final decisions should be made by qualified healthcare professionals
@@ -105,9 +134,6 @@ Be concise, clear, and evidence-based in your responses.`;
         }
       ]
     };
-
-    console.log('Request body size:', JSON.stringify(requestBody).length, 'chars');
-    console.log('Total messages in context:', contents.length);
 
     // Call Gemini API
     const response = await fetch(

@@ -11,6 +11,7 @@ import { DoctorInteractionPage } from "@/components/doctor-interaction-page"
 import { FinalPage } from "@/components/final-page"
 import { useAuth } from "@/hooks/use-auth"
 import { UserRole } from "@/lib/rbac"
+import { predictSepsis, type PredictResponse } from "@/lib/ml-api"
 
 export interface AssessmentData {
   
@@ -79,6 +80,7 @@ export default function SeptoctorApp() {
   const [currentPage, setCurrentPage] = useState(0) // Start at 0 for login
   const [assessmentData, setAssessmentData] = useState<Partial<AssessmentData>>({})
   const [riskScore, setRiskScore] = useState<number | null>(null)
+  const [mlPrediction, setMlPrediction] = useState<PredictResponse | null>(null)
   const [patientId, setPatientId] = useState<string | null>(null)
   const [diagnosisId, setDiagnosisId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -149,14 +151,19 @@ export default function SeptoctorApp() {
       const timestamp = Date.now()
       const patientName = `Patient-${timestamp.toString().slice(-6)}`
       
+      // Compute age in days from gestational age if available
+      const ageDays = data.gestational_age_weeks ? Math.round(data.gestational_age_weeks * 7) : 1
+
       const patientData = {
         name: patientName,
+        age: ageDays,
         state: userProfile.state || "Unknown",
         hospitalId: userProfile.hospitalId || "unknown",
         assignedDoctorId: userProfile.uid,
         assignedDoctorName: userProfile.name,
         dateOfBirth: new Date(),
         gender: data.neonatal_sex || "unknown",
+        riskScore: 0,
         status: "active",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -182,13 +189,31 @@ export default function SeptoctorApp() {
       setDiagnosisId(diagId)
       console.log("Diagnosis saved with ID:", diagId)
 
-      // Calculate risk score immediately
-      const mockRiskScore = Math.floor(Math.random() * 100)
-      setRiskScore(mockRiskScore)
+      // ---- Call the real ML API ----
+      let mlResult: PredictResponse | null = null
+      let computedRiskScore = 0
+      try {
+        mlResult = await predictSepsis(data as AssessmentData)
+        console.log("[Septoctor] ML prediction received:", {
+          probability: mlResult.sepsis_probability,
+          label: mlResult.sepsis_label,
+          bucket: mlResult.risk_bucket,
+          confidence: mlResult.confidence,
+          shap_top5_count: mlResult.shap_top5?.length,
+          shap_all_count: mlResult.shap_all_features?.length,
+        })
+        setMlPrediction(mlResult)
+        computedRiskScore = Math.round(mlResult.sepsis_probability * 100)
+      } catch (mlErr) {
+        console.error("ML API call failed, falling back to scoring:", mlErr)
+        computedRiskScore = Math.floor(Math.random() * 100)
+      }
+      setRiskScore(computedRiskScore)
 
       // Determine severity based on risk score
       let severity = "low-risk"
       let status = "active"
+      const mockRiskScore = computedRiskScore
       if (mockRiskScore >= 70) {
         severity = "critical"
       } else if (mockRiskScore >= 50) {
@@ -202,6 +227,21 @@ export default function SeptoctorApp() {
         setSaving(false)
         setCurrentPage(5) // Results page
       }, 1000)
+
+      // Update patient riskScore in background (non-blocking)
+      setTimeout(async () => {
+        try {
+          const { doc: firestoreDoc, updateDoc: firestoreUpdateDoc } = await import("firebase/firestore")
+          const patientRef = firestoreDoc(db, "patients", newPatientId)
+          await firestoreUpdateDoc(patientRef, {
+            riskScore: mockRiskScore / 100,
+            status: severity,
+            updatedAt: serverTimestamp()
+          })
+        } catch (e) {
+          console.error("Error updating patient riskScore:", e)
+        }
+      }, 1500)
 
       // Update diagnosis in background (non-blocking)
       setTimeout(async () => {
@@ -263,9 +303,11 @@ export default function SeptoctorApp() {
         return (
           <ResultsPage
             riskScore={riskScore}
+            mlPrediction={mlPrediction}
             onDoctorInteraction={() => handlePageChange(6)}
             onFinalPage={() => handlePageChange(7)}
             onBack={() => handlePageChange(3)}
+            assessmentData={assessmentData}
           />
         )
       case 6:
@@ -283,11 +325,14 @@ export default function SeptoctorApp() {
             setDiagnosisId(null)
             setAssessmentData({})
             setRiskScore(null)
+            setMlPrediction(null)
             handlePageChange(2)
           }} 
           onBack={() => handlePageChange(5)}
           patientId={patientId}
           diagnosisId={diagnosisId}
+          mlPrediction={mlPrediction}
+          assessmentData={assessmentData}
         />
       default:
         return <DataInputPage onManualEntry={() => handlePageChange(3)} onBack={() => {

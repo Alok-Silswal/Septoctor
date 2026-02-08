@@ -15,7 +15,6 @@ import {
   getApgar1Category,
   getApgar5Category,
 } from "@/lib/scoring"
-import { AIChatAssistant } from "@/components/ai-chat-assistant"
 
 interface DoctorInteractionPageProps {
   onBack: () => void
@@ -164,24 +163,6 @@ export function DoctorInteractionPage({ onBack, data }: DoctorInteractionPagePro
         })}
       </div>
 
-      {/* ================= AI CHAT ASSISTANT ================= */}
-
-      <div className="mt-8">
-        <AIChatAssistant 
-          patientContext={{
-            mnrsScore,
-            hssScore,
-            apgar1,
-            apgar5,
-            mnrsRisk: mnrsData.risk,
-            hssRisk: hssData.risk,
-            apgar1Risk: apgar1Data.risk,
-            apgar5Risk: apgar5Data.risk,
-            ...data
-          }} 
-          className="bg-white/95 backdrop-blur-sm border-0 shadow-xl"
-        />
-      </div>
     </div>
   )
 }

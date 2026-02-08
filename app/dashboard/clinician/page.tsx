@@ -7,13 +7,13 @@ import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/lib/rbac';
-import { getPatientsByRole, getDiagnosesByRole, downloadDiagnosisData, downloadPatientData, downloadPatientDataWithDiagnosis, getPatientsByDoctor, getDiagnosesByDoctor, Diagnosis } from '@/lib/queries';
+import { getPatientsByRole, getDiagnosesByRole, downloadDiagnosisData, downloadPatientData, downloadPatientDataWithDiagnosis, downloadIndividualPatientData, updatePatientStatus, getPatientsByDoctor, getDiagnosesByDoctor, Diagnosis } from '@/lib/queries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 
 
 
@@ -121,7 +121,54 @@ function ClinicianDashboardInner() {
       userProfile.role !== UserRole.STATE_ADMIN && 
       userProfile.role !== UserRole.SUPER_ADMIN)) return null;
 
-  const criticalPatients = patients.filter(p => p.status === 'critical' || p.riskScore >= 0.7);
+  const criticalPatients = patients.filter(p => {
+    const score = typeof p.riskScore === 'number' && !isNaN(p.riskScore) ? p.riskScore : 0;
+    return p.status === 'critical' || score >= 0.7;
+  });
+
+  const getPatientAge = (patient: any) => {
+    const age = patient.age;
+    if (typeof age === 'number' && !isNaN(age) && age > 0) return `${age} days`;
+    return 'N/A';
+  };
+
+  const getPatientRiskDisplay = (patient: any) => {
+    const score = patient.riskScore;
+    if (typeof score === 'number' && !isNaN(score)) {
+      const pct = score <= 1 ? (score * 100).toFixed(0) : score.toFixed(0);
+      return { text: `${pct}%`, isHigh: (score <= 1 ? score : score / 100) >= 0.7 };
+    }
+    // Fallback: try to get from latest diagnosis
+    const patientDiags = diagnoses.filter(d => d.patientId === patient.id);
+    if (patientDiags.length > 0 && patientDiags[0].mlPrediction?.riskScore != null) {
+      const rs = patientDiags[0].mlPrediction.riskScore;
+      const pct = rs <= 1 ? (rs * 100).toFixed(0) : rs.toFixed(0);
+      return { text: `${pct}%`, isHigh: (rs <= 1 ? rs : rs / 100) >= 0.7 };
+    }
+    return { text: 'N/A', isHigh: false };
+  };
+
+  const handleCloseCase = async (patientId: string) => {
+    if (!confirm('Are you sure you want to close this case?')) return;
+    try {
+      await updatePatientStatus(patientId, 'closed');
+      // Refresh data
+      setPatients(prev => prev.map(p => p.id === patientId ? { ...p, status: 'closed' } : p));
+    } catch (error) {
+      console.error('Error closing case:', error);
+      alert('Failed to close case');
+    }
+  };
+
+  const handleReopenCase = async (patientId: string) => {
+    try {
+      await updatePatientStatus(patientId, 'active');
+      setPatients(prev => prev.map(p => p.id === patientId ? { ...p, status: 'active' } : p));
+    } catch (error) {
+      console.error('Error reopening case:', error);
+      alert('Failed to reopen case');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-purple-100 p-6">
@@ -153,14 +200,27 @@ function ClinicianDashboardInner() {
 
         {criticalPatients.length > 0 && (
           <Card className="border-red-300 bg-red-50">
-            <CardHeader><CardTitle className="text-red-800">⚠️ Critical Patients</CardTitle></CardHeader>
-            <CardContent>
-              {criticalPatients.map((patient) => (
-                <div key={patient.id} className="flex items-center justify-between p-3 bg-white rounded-lg border mb-2">
-                  <div><p className="font-medium">{patient.name}</p><p className="text-sm text-gray-600">Age: {patient.age} days</p></div>
-                  <Badge variant="destructive">Risk: {(patient.riskScore * 100).toFixed(0)}%</Badge>
-                </div>
-              ))}
+            <CardHeader><CardTitle className="text-red-800">⚠️ Critical Patients ({criticalPatients.length})</CardTitle></CardHeader>
+            <CardContent className="space-y-2 max-h-[300px] overflow-y-auto">
+              {criticalPatients.map((patient) => {
+                const risk = getPatientRiskDisplay(patient);
+                return (
+                  <div key={patient.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                    <div>
+                      <p className="font-medium">{patient.name}</p>
+                      <p className="text-sm text-gray-600">Age: {getPatientAge(patient)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="destructive">Risk: {risk.text}</Badge>
+                      {patient.status !== 'closed' && (
+                        <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleCloseCase(patient.id)}>
+                          <CheckCircle className="h-3 w-3 mr-1" /> Close Case
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}
@@ -259,7 +319,7 @@ function ClinicianDashboardInner() {
                       disabled={downloadingPatientData}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      {downloadingPatientData ? 'Downloading...' : 'Patients + Diagnosis CSV'}
+                      {downloadingPatientData ? 'Downloading...' : 'All Patients CSV'}
                     </Button>
                     <Button 
                       size="sm" 
@@ -268,7 +328,7 @@ function ClinicianDashboardInner() {
                       disabled={downloadingPatientData}
                     >
                       <Download className="h-4 w-4 mr-2" />
-                      {downloadingPatientData ? 'Downloading...' : 'Patients + Diagnosis JSON'}
+                      {downloadingPatientData ? 'Downloading...' : 'All Patients JSON'}
                     </Button>
                   </div>
                 </div>
@@ -277,14 +337,72 @@ function ClinicianDashboardInner() {
                 {patients.length === 0 ? (
                   <div className="text-center py-12"><p className="text-gray-500">No patients assigned yet</p></div>
                 ) : (
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Patient Name</TableHead><TableHead>Age</TableHead><TableHead>Risk Score</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {patients.map((patient) => (
-                        <TableRow key={patient.id}><TableCell>{patient.name}</TableCell><TableCell>{patient.age} days</TableCell><TableCell><Badge variant={patient.riskScore >= 0.7 ? 'destructive' : 'secondary'}>{(patient.riskScore * 100).toFixed(0)}%</Badge></TableCell><TableCell><Badge>{patient.status}</Badge></TableCell></TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Patient Name</TableHead>
+                          <TableHead>Age</TableHead>
+                          <TableHead>Risk Score</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {patients.map((patient) => {
+                          const risk = getPatientRiskDisplay(patient);
+                          return (
+                            <TableRow key={patient.id} className={patient.status === 'closed' ? 'opacity-60' : ''}>
+                              <TableCell className="font-medium">{patient.name}</TableCell>
+                              <TableCell>{getPatientAge(patient)}</TableCell>
+                              <TableCell>
+                                <Badge variant={risk.isHigh ? 'destructive' : 'secondary'}>
+                                  {risk.text}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={patient.status === 'closed' ? 'outline' : patient.status === 'critical' ? 'destructive' : 'default'}>
+                                  {patient.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex gap-1 justify-end">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs"
+                                    onClick={() => downloadIndividualPatientData(patient, diagnoses, 'json')}
+                                    title="Download patient data"
+                                  >
+                                    <Download className="h-3 w-3 mr-1" /> Data
+                                  </Button>
+                                  {patient.status !== 'closed' ? (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => handleCloseCase(patient.id)}
+                                    >
+                                      <XCircle className="h-3 w-3 mr-1" /> Close
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={() => handleReopenCase(patient.id)}
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" /> Reopen
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>

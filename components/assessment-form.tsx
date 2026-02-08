@@ -102,6 +102,62 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  // ========================================
+  // Auto-compute APGAR totals from Section D components → Section B
+  // ========================================
+  useEffect(() => {
+    const a1Fields = [
+      formData.apgar1_appearance,
+      formData.apgar1_pulse,
+      formData.apgar1_grimace,
+      formData.apgar1_activity,
+      formData.apgar1_respiration,
+    ]
+    const filled1 = a1Fields.filter((v) => v !== undefined && v !== null && v !== "")
+    if (filled1.length > 0) {
+      const total = filled1.reduce((sum: number, v) => sum + Number(v), 0)
+      setFormData((prev) => ({ ...prev, apgar_1_min: total }))
+    }
+  }, [
+    formData.apgar1_appearance,
+    formData.apgar1_pulse,
+    formData.apgar1_grimace,
+    formData.apgar1_activity,
+    formData.apgar1_respiration,
+  ])
+
+  useEffect(() => {
+    const a5Fields = [
+      formData.apgar5_appearance,
+      formData.apgar5_pulse,
+      formData.apgar5_grimace,
+      formData.apgar5_activity,
+      formData.apgar5_respiration,
+    ]
+    const filled5 = a5Fields.filter((v) => v !== undefined && v !== null && v !== "")
+    if (filled5.length > 0) {
+      const total = filled5.reduce((sum: number, v) => sum + Number(v), 0)
+      setFormData((prev) => ({ ...prev, apgar_5_min: total }))
+    }
+  }, [
+    formData.apgar5_appearance,
+    formData.apgar5_pulse,
+    formData.apgar5_grimace,
+    formData.apgar5_activity,
+    formData.apgar5_respiration,
+  ])
+
+  // Whether APGAR totals are auto-computed from Section D
+  const apgar1AutoFilled = [
+    formData.apgar1_appearance, formData.apgar1_pulse, formData.apgar1_grimace,
+    formData.apgar1_activity, formData.apgar1_respiration,
+  ].some((v) => v !== undefined && v !== null && v !== "")
+
+  const apgar5AutoFilled = [
+    formData.apgar5_appearance, formData.apgar5_pulse, formData.apgar5_grimace,
+    formData.apgar5_activity, formData.apgar5_respiration,
+  ].some((v) => v !== undefined && v !== null && v !== "")
+
   const handleSubmit = () => {
     // ---------- VALIDATION START ----------
     const apgar1 = formData.apgar_1_min
@@ -413,15 +469,20 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       min="0"
                       max="10"
                       value={formData.apgar_1_min ?? ""}
-                      className={isPrefilled("apgar_1_min") ? "border-green-500" : ""}
+                      className={`${isPrefilled("apgar_1_min") ? "border-green-500" : ""} ${apgar1AutoFilled ? "bg-blue-50 border-blue-400" : ""}`}
+                      readOnly={apgar1AutoFilled}
                       onChange={(e) => {
-                        const val = e.target.value === "" ? null : Number(e.target.value)
-                        updateFormData("apgar_1_min", val)
+                        if (!apgar1AutoFilled) {
+                          const val = e.target.value === "" ? null : Number(e.target.value)
+                          updateFormData("apgar_1_min", val)
+                        }
                       }}
                     />
-                    {isPrefilled("apgar_1_min") && (
+                    {apgar1AutoFilled ? (
+                      <p className="text-xs text-blue-600 mt-1">Auto-computed from Section D</p>
+                    ) : isPrefilled("apgar_1_min") ? (
                       <p className="text-xs text-green-600 mt-1">Prefilled from OCR</p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="space-y-2">
@@ -431,15 +492,20 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
                       min="0"
                       max="10"
                       value={formData.apgar_5_min ?? ""}
-                      className={isPrefilled("apgar_5_min") ? "border-green-500" : ""}
+                      className={`${isPrefilled("apgar_5_min") ? "border-green-500" : ""} ${apgar5AutoFilled ? "bg-blue-50 border-blue-400" : ""}`}
+                      readOnly={apgar5AutoFilled}
                       onChange={(e) => {
-                        const val = e.target.value === "" ? null : Number(e.target.value)
-                        updateFormData("apgar_5_min", val)
+                        if (!apgar5AutoFilled) {
+                          const val = e.target.value === "" ? null : Number(e.target.value)
+                          updateFormData("apgar_5_min", val)
+                        }
                       }}
                     />
-                    {isPrefilled("apgar_5_min") && (
+                    {apgar5AutoFilled ? (
+                      <p className="text-xs text-blue-600 mt-1">Auto-computed from Section D</p>
+                    ) : isPrefilled("apgar_5_min") ? (
                       <p className="text-xs text-green-600 mt-1">Prefilled from OCR</p>
-                    )}
+                    ) : null}
                   </div>
 
                   <div>

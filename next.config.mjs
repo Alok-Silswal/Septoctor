@@ -2,11 +2,12 @@
 const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
+  output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -14,7 +15,6 @@ const nextConfig = {
   experimental: {
     missingSuspenseWithCSRBailout: false,
   },
-  // Prevent any server-side rendering
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },

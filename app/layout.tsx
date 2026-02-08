@@ -10,9 +10,6 @@ import ClientWrapper from "./client-wrapper"
 
 import "./globals.css"
 
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 export const metadata: Metadata = {
   title: "Septoctor - AI Driven Sepsis Prediction",
   description: "AI-powered neonatal sepsis prediction and risk scoring tool",

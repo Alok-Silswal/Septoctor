@@ -9,13 +9,15 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-medical-blue to-medical-teal flex items-center justify-center">
-        <div className="text-white text-xl">Loading Septoctor...</div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+  // Render children immediately but suppress hydration mismatches
+  // by only showing full UI after mount
+  return (
+    <div suppressHydrationWarning>
+      {mounted ? children : (
+        <div className="min-h-screen bg-gradient-to-br from-medical-blue to-medical-teal flex items-center justify-center">
+          <div className="text-white text-xl">Loading Septoctor...</div>
+        </div>
+      )}
+    </div>
+  );
 }

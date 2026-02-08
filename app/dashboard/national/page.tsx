@@ -1,11 +1,10 @@
 'use client';
-export const dynamic = "force-dynamic";
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { UserRole } from '@/lib/rbac';
-import { getDashboardStats, getPatientsByRole, getHospitalsByRole, getDiagnosesByRole, downloadDiagnosisData, downloadPatientData, downloadPatientDataWithDiagnosis, getAllStates, Diagnosis } from '@/lib/queries';
+import { getPatientsByRole, getHospitalsByRole, getDoctorsByRole, getDiagnosesByRole, downloadDiagnosisData, downloadPatientData, downloadPatientDataWithDiagnosis, Diagnosis } from '@/lib/queries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,18 +54,36 @@ function NationalDashboardInner() {
     if (!userProfile) return;
     try {
       setLoading(true);
-      const [dashboardStats, hospitalsList, patientsList, diagnosesList, statesList] = await Promise.all([
-        getDashboardStats(userProfile),
+      // Fetch all data in ONE parallel batch (no duplicate calls)
+      const [hospitalsList, patientsList, doctorsList, diagnosesList] = await Promise.all([
         getHospitalsByRole(userProfile),
         getPatientsByRole(userProfile),
+        getDoctorsByRole(userProfile),
         getDiagnosesByRole(userProfile),
-        getAllStates()
       ]);
       
       // Filter out hospitals with no bed data (likely duplicates)
       const hospitalsWithBeds = hospitalsList.filter(h => (h.totalBeds || 0) > 0 || (h.nicuBeds || 0) > 0);
-      
-      setStats(dashboardStats);
+
+      // Extract unique states from hospitals (avoids a separate full-collection fetch)
+      const statesList = [...new Set(hospitalsList.map(h => h.state).filter(Boolean))].sort() as string[];
+
+      // Compute dashboard stats locally from already-fetched data
+      const totalBeds = hospitalsWithBeds.reduce((sum, h) => sum + (h.totalBeds || 0), 0);
+      const totalNicuBeds = hospitalsWithBeds.reduce((sum, h) => sum + (h.nicuBeds || 0), 0);
+      const occupiedBeds = patientsList.length;
+      const bedOccupancyRate = totalBeds > 0 ? parseFloat((occupiedBeds / totalBeds * 100).toFixed(1)) : 0;
+
+      setStats({
+        totalPatients: patientsList.length,
+        criticalPatients: patientsList.filter(p => p.status === 'critical' || p.riskScore >= 0.7).length,
+        totalHospitals: hospitalsWithBeds.length,
+        totalDoctors: doctorsList.length,
+        totalBeds,
+        totalNicuBeds,
+        occupiedBeds,
+        bedOccupancyRate
+      });
       setHospitals(hospitalsWithBeds);
       setPatients(patientsList);
       setDiagnoses(diagnosesList);

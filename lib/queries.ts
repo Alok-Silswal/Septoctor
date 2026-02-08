@@ -9,8 +9,11 @@ import {
   getDocs, 
   doc, 
   getDoc,
+  updateDoc,
   orderBy,
-  QueryConstraint
+  limit,
+  QueryConstraint,
+  serverTimestamp
 } from 'firebase/firestore';
 import { initFirebase } from '@/lib/firebase';
 import { UserRole, UserProfile, Hospital, Patient } from '@/lib/rbac';
@@ -43,9 +46,8 @@ export const getPatientsByRole = async (userProfile: UserProfile): Promise<Patie
     }
 
     console.log('Fetching patients for role:', userProfile.role, 'constraints:', queryConstraints.length);
-    const q = query(patientsRef, ...queryConstraints);
+    const q = query(patientsRef, ...queryConstraints, limit(500));
     const snapshot = await getDocs(q);
-    console.log('Fetched patients count:', snapshot.docs.length);
 
     return snapshot.docs.map(doc => ({
       id: doc.id,
@@ -75,7 +77,7 @@ export const getHospitalsByRole = async (userProfile: UserProfile): Promise<Hosp
         break;
       case UserRole.STATE_ADMIN:
         if (!userProfile.state) throw new Error('State admin must have a state assigned');
-        queryConstraints = [where('state', '==', userProfile.state), orderBy('name', 'asc')];
+        queryConstraints = [where('state', '==', userProfile.state)];
         break;
       case UserRole.HOSPITAL_ADMIN:
       case UserRole.CLINICIAN:
@@ -89,11 +91,12 @@ export const getHospitalsByRole = async (userProfile: UserProfile): Promise<Hosp
     const q = query(hospitalsRef, ...queryConstraints);
     const snapshot = await getDocs(q);
 
+    // Sort in memory to avoid needing composite indexes
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date()
-    } as Hospital));
+    } as Hospital)).sort((a, b) => a.name.localeCompare(b.name));
   } catch (error: any) {
     console.error('Firebase error fetching hospitals:', error.message);
     return [];
@@ -107,22 +110,20 @@ export const getDoctorsByRole = async (userProfile: UserProfile): Promise<UserPr
 
     switch (userProfile.role) {
       case UserRole.SUPER_ADMIN:
-        queryConstraints = [where('role', '==', UserRole.CLINICIAN), orderBy('name', 'asc')];
+        queryConstraints = [where('role', '==', UserRole.CLINICIAN)];
         break;
       case UserRole.STATE_ADMIN:
         if (!userProfile.state) throw new Error('State admin must have a state assigned');
         queryConstraints = [
           where('role', '==', UserRole.CLINICIAN),
-          where('state', '==', userProfile.state),
-          orderBy('name', 'asc')
+          where('state', '==', userProfile.state)
         ];
         break;
       case UserRole.HOSPITAL_ADMIN:
         if (!userProfile.hospitalId) throw new Error('Hospital admin must have a hospital assigned');
         queryConstraints = [
           where('role', '==', UserRole.CLINICIAN),
-          where('hospitalId', '==', userProfile.hospitalId),
-          orderBy('name', 'asc')
+          where('hospitalId', '==', userProfile.hospitalId)
         ];
         break;
       case UserRole.CLINICIAN:
@@ -134,12 +135,13 @@ export const getDoctorsByRole = async (userProfile: UserProfile): Promise<UserPr
     const q = query(usersRef, ...queryConstraints);
     const snapshot = await getDocs(q);
 
+    // Sort in memory to avoid needing composite indexes
     return snapshot.docs.map(doc => ({
       uid: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate() || new Date(),
       updatedAt: doc.data().updatedAt?.toDate() || new Date()
-    } as UserProfile));
+    } as UserProfile)).sort((a, b) => a.name.localeCompare(b.name));
   } catch (error: any) {
     console.error('Firebase error fetching doctors:', error.message);
     return [];
@@ -640,6 +642,78 @@ export const getPatientsByDoctor = async (doctorId: string): Promise<Patient[]> 
   } catch (error) {
     console.error('Error fetching patients by doctor:', error);
     return [];
+  }
+};
+
+// Update patient status (e.g. close a case)
+export const updatePatientStatus = async (patientId: string, status: string): Promise<void> => {
+  try {
+    const patientRef = doc(db, 'patients', patientId);
+    await updateDoc(patientRef, {
+      status,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error updating patient status:', error);
+    throw error;
+  }
+};
+
+// Download individual patient data with their diagnoses
+export const downloadIndividualPatientData = async (
+  patient: Patient,
+  diagnoses: Diagnosis[],
+  format: 'csv' | 'json' = 'json'
+) => {
+  const patientDiagnoses = diagnoses.filter(d => d.patientId === patient.id);
+  const data = {
+    patient: {
+      id: patient.id,
+      name: patient.name,
+      age: patient.age,
+      gender: patient.gender,
+      status: patient.status,
+      riskScore: patient.riskScore,
+      admissionDate: patient.admissionDate,
+      createdAt: patient.createdAt,
+    },
+    diagnoses: patientDiagnoses.map(d => ({
+      id: d.id,
+      type: d.diagnosisType,
+      severity: d.severity,
+      summary: d.diagnosisSummary,
+      notes: d.detailedNotes,
+      treatment: d.treatmentPlan,
+      mlPrediction: d.mlPrediction,
+      status: d.status,
+      date: d.diagnosisDate,
+    }))
+  };
+
+  if (format === 'json') {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${patient.name}_data.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } else {
+    const headers = ['Patient Name', 'Age (days)', 'Gender', 'Status', 'Risk Score',
+      'Diagnosis Date', 'Diagnosis Type', 'Severity', 'Summary', 'Treatment', 'ML Risk Score'];
+    const rows = patientDiagnoses.map(d => [
+      patient.name, patient.age, patient.gender, patient.status, patient.riskScore,
+      d.diagnosisDate?.toISOString() || '', d.diagnosisType, d.severity,
+      d.diagnosisSummary, d.treatmentPlan, d.mlPrediction?.riskScore || ''
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${patient.name}_data.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 };
 

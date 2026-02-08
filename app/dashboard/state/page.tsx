@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -61,7 +59,7 @@ function StateDashboardInner() {
     try {
       setLoading(true);
       
-      console.log('Loading dashboard data for user:', userProfile.role, 'State:', userProfile.state, 'View State:', viewState);
+      console.log('Loading dashboard data for user:', userProfile.role, 'State:', userProfile.state);
       
       // If viewing a specific state (from national drill-down), use that state
       // Otherwise use the user's assigned state
