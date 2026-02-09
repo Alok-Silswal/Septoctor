@@ -1,9 +1,10 @@
 # backend/septoctor_ml/main.py
 
+import traceback
 from pathlib import Path
 from typing import Dict, Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from septoctor_ml.schemas import InferenceRequest
@@ -63,13 +64,20 @@ def health_check():
 def predict(payload: Dict[str, Any]):
     result = predict_with_explainability(payload)
 
-    # Log inputs + prediction for drift monitoring
-    log_row = {
-        **payload,
-        "sepsis_probability": result["sepsis_probability"],
-        "sepsis_label": result["sepsis_label"],
-    }
-    log_current_data(log_row)
+    # If inference returned an error dict, surface it as a 500 with details
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result)
+
+    # Log inputs + prediction for drift monitoring (non-critical — don't let it break the response)
+    try:
+        log_row = {
+            **payload,
+            "sepsis_probability": result["sepsis_probability"],
+            "sepsis_label": result["sepsis_label"],
+        }
+        log_current_data(log_row)
+    except Exception as log_err:
+        print(f"[WARNING] Drift logging failed: {log_err}")
 
     return result
 

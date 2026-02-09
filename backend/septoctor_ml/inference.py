@@ -1,10 +1,10 @@
 import json
+import traceback
 import joblib
 import numpy as np
 import pandas as pd
 import shap
 from pathlib import Path
-from monitoring.logger import log_current_data
 from septoctor_ml.feature_mapper import map_ui_to_model
 
 # ======================================================
@@ -72,9 +72,6 @@ def predict_with_explainability(raw_input: dict) -> dict:
 
         # ---- Step 2: preprocess ----
         X = preprocess(model_input)
-
-        # 🔴 CRITICAL: LOG MODEL INPUT FOR DRIFT
-        log_current_data(X)
 
         # ---- Step 3: probability ----
         p = float(model.predict_proba(X)[0, 1])
@@ -146,9 +143,12 @@ def predict_with_explainability(raw_input: dict) -> dict:
         }
 
     except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[ERROR] Inference pipeline failure:\n{tb}")
         return {
             "error": "Inference pipeline failure",
-            "details": str(e)
+            "details": str(e),
+            "traceback": tb,
         }
 
 

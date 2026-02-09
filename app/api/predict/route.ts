@@ -24,6 +24,10 @@ export async function POST(request: Request) {
 
     const upstreamText = await upstreamResponse.text()
 
+    if (!upstreamResponse.ok) {
+      console.error(`[/api/predict] Upstream returned ${upstreamResponse.status}:`, upstreamText)
+    }
+
     return new NextResponse(upstreamText, {
       status: upstreamResponse.status,
       headers: {
