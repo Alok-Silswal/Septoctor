@@ -240,6 +240,15 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
   // const [isCameraOpen, setIsCameraOpen] = useState(false)
 
   // Handle dashboard navigation
+  const handleRunDrift = async () => {
+    try {
+      await fetch("/api/run-drift", { method: "POST" })
+      window.open("http://localhost:8000/drift-report", "_blank")
+    } catch (error) {
+      alert("Failed to run data drift check")
+      console.error(error)
+    }
+  }
   const handleGoToDashboard = () => {
     if (userProfile?.role === UserRole.HOSPITAL_ADMIN) {
       router.push('/dashboard/hospital')
@@ -541,6 +550,14 @@ export function DataInputPage({ onManualEntry, onBack }: DataInputPageProps) {
               </CardContent>
             </Card>
           </div>
+         <button
+  type="button"
+  onClick={handleRunDrift}
+  className="mt-4 px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700"
+>
+  Run Data Drift Check
+</button>
+
         </div>
       </div>
     </div>

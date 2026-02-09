@@ -8,6 +8,39 @@ This MUST exactly match the feature space used during training.
 from typing import Dict, Any
 
 
+# =====================================================
+# Safe numeric helper (MANDATORY)
+# =====================================================
+
+def to_float(value: Any) -> float:
+    if value is None:
+        return 0.0
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in {"yes", "y", "true", "present"}:
+            return 1.0
+        if v in {"no", "n", "false", "absent"}:
+            return 0.0
+        try:
+            return float(v)
+        except ValueError:
+            return 0.0
+
+    return 0.0
+
+
+def to_int(value: Any) -> int:
+    return int(to_float(value))
+
+
+# =====================================================
+# Main mapper
+# =====================================================
+
 def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     mapped: Dict[str, int | float] = {}
 
@@ -15,21 +48,14 @@ def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     # Continuous / numeric features
     # =====================================================
 
-    mapped["prom_duration_hours"] = float(raw.get("prom_duration_hours") or 0)
-    mapped["maternal_fever_celsius"] = float(raw.get("maternal_fever_celsius") or 0)
-    mapped["temperature_celsius"] = float(raw.get("temperature_celsius") or 0)
-    mapped["heart_rate_bpm"] = float(raw.get("heart_rate_bpm") or 0)
-    mapped["pv_examinations_count"] = int(raw.get("pv_examinations_count") or 0)
+    mapped["prom_duration_hours"] = to_float(raw.get("prom_duration_hours"))
+    mapped["maternal_fever_celsius"] = to_float(raw.get("maternal_fever_celsius"))
+    mapped["temperature_celsius"] = to_float(raw.get("temperature_celsius"))
+    mapped["heart_rate_bpm"] = to_float(raw.get("heart_rate_bpm"))
+    mapped["pv_examinations_count"] = to_int(raw.get("pv_examinations_count"))
 
-    # If these existed during training (seen in error trace)
-    mapped["gestational_age_weeks"] = float(raw.get("gestational_age_weeks") or 0)
-    mapped["birth_weight_grams"] = float(raw.get("birth_weight_grams") or 0)
-
-    # =====================================================
-    # Helper lambdas
-    # =====================================================
-
-    yes = lambda v: 1 if v in ["yes", 1, True] else 0
+    mapped["gestational_age_weeks"] = to_float(raw.get("gestational_age_weeks"))
+    mapped["birth_weight_grams"] = to_float(raw.get("birth_weight_grams"))
 
     # =====================================================
     # Binary YES/NO → *_yes
@@ -57,7 +83,7 @@ def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     ]
 
     for field in yes_no_fields:
-        mapped[f"{field}_yes"] = yes(raw.get(field))
+        mapped[f"{field}_yes"] = to_int(raw.get(field))
 
     # =====================================================
     # Feeding status (one-hot)
@@ -97,7 +123,7 @@ def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     mapped["gestational_age_category__37_weeks"] = 1 if ga_cat == "≥37 weeks" else 0
 
     # =====================================================
-    # APGAR components (already numeric but ensure int)
+    # APGAR components (force safe int)
     # =====================================================
 
     apgar_fields = [
@@ -114,6 +140,6 @@ def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     ]
 
     for f in apgar_fields:
-        mapped[f] = int(raw.get(f) or 0)
+        mapped[f] = to_int(raw.get(f))
 
     return mapped

@@ -1,62 +1,30 @@
 from pathlib import Path
 import pandas as pd
-
 from evidently.report import Report
-from evidently.metrics import DataDriftTable
+from evidently.metric_preset import DataDriftPreset
 
-# --------------------------------------------------
-# Resolve project root
-# --------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path("/app")
 
-REFERENCE_PATH = BASE_DIR / "backend" / "artifacts" / "reference_data.csv"
-CURRENT_DIR = BASE_DIR / "data" / "current"
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
+DATA_DIR = BASE_DIR / "data" / "current"
+REPORT_DIR = BASE_DIR / "artifacts"
 
-# --------------------------------------------------
-# Load reference data
-# --------------------------------------------------
-reference = pd.read_csv(REFERENCE_PATH)
+REPORT_PATH = REPORT_DIR / "drift_latest.html"
 
-# --------------------------------------------------
-# Load latest current data automatically
-# --------------------------------------------------
-current_files = sorted(CURRENT_DIR.glob("*.csv"))
-if not current_files:
-    raise RuntimeError("No current data files found in data/current")
+def run_drift_and_get_html():
+    reference = pd.read_csv("/app/artifacts/reference_data.csv")
 
-latest_current = current_files[-1]
-current = pd.read_csv(latest_current)
+    files = sorted(Path("/app/data/current").glob("*.csv"))
+    if not files:
+        raise RuntimeError("No current data logged")
 
-print("Using current data:", latest_current.name)
+    current = pd.read_csv(files[-1])
+    current = current[reference.columns]
 
-# --- Drop prediction column if present ---
-PRED_COL = "sepsis_probability"
+    report = Report(metrics=[DataDriftPreset()])
+    report.run(reference_data=reference, current_data=current)
 
-if PRED_COL in reference.columns:
-    reference = reference.drop(columns=[PRED_COL])
+    out = Path("/app/artifacts/drift_report.html")
+    report.save_html(out)
+    return out
 
-if PRED_COL in current.columns:
-    current = current.drop(columns=[PRED_COL])
-
-# --------------------------------------------------
-# Run drift report
-# --------------------------------------------------
-report = Report(metrics=[DataDriftTable()])
-report.run(
-    reference_data=reference,
-    current_data=current
-)
-
-# --------------------------------------------------
-# Save HTML report (STABLE API)
-# --------------------------------------------------
-out = (
-    BASE_DIR
-    / "backend"
-    / "monitoring"
-    / f"drift_report_{latest_current.stem}.html"
-)
-
-report.save_html(str(out))
-
-print("Drift report saved to:", out)

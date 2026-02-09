@@ -1,19 +1,16 @@
-import os
-from datetime import date
+from pathlib import Path
 import pandas as pd
+from datetime import datetime
+from typing import Dict, Any
 
-def log_current_data(X_current: pd.DataFrame):
-    """
-    Append model-input data for drift monitoring.
-    """
-    os.makedirs("data/current", exist_ok=True)
+BASE_DIR = Path("/app")
+DATA_DIR = BASE_DIR / "data" / "current"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    today = date.today().isoformat()
-    path = f"data/current/{today}.csv"
+def log_current_data(row: Dict[str, Any]) -> None:
+    df = pd.DataFrame([row])
 
-    X_current.to_csv(
-        path,
-        mode="a",
-        header=not os.path.exists(path),
-        index=False
-    )
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    out = DATA_DIR / f"current_{ts}.csv"
+
+    df.to_csv(out, index=False)

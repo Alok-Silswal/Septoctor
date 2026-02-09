@@ -125,6 +125,8 @@ export default function SeptoctorApp() {
     setCurrentPage(page)
   }
 
+  
+
   const handleAssessmentSubmit = async (data: AssessmentData) => {
     setAssessmentData(data)
     setCurrentPage(4) // Processing page
