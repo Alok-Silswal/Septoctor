@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-from typing import Dict, Any
-from pathlib import Path
-from fastapi.responses import FileResponse, HTMLResponse
-from monitoring.logger import log_current_data
-
+from fastapi.middleware.cors import CORSMiddleware
+from septoctor_ml.schemas import InferenceRequest
 from septoctor_ml.inference import predict_with_explainability
 from monitoring.run_drift import run_drift_and_get_html
 
@@ -12,6 +9,14 @@ app = FastAPI(
     title="Septoctor ML Inference API",
     version="1.0",
     description="AI-powered neonatal sepsis risk assessment API",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

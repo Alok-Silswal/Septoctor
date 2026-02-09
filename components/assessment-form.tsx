@@ -186,6 +186,8 @@ export function AssessmentForm({ onSubmit, onBack }: AssessmentFormProps) {
 
     const submissionData = {
       ...formData,
+      birth_weight_grams: birthWeightInput ?? undefined,
+      gestational_age_weeks: gestAgeInput ?? undefined,
       mnrs_score: mnrsScore,
       hss_score: hssScore,
       apgar1_total: apgar1Total,
