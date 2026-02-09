@@ -36,7 +36,7 @@ DRIFT_REPORT_PATH = BASE_DIR / "monitoring" / "reports" / "drift_latest.html"
 # -----------------------------
 # Health
 # -----------------------------
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {
         "status": "ok",
