@@ -1,8 +1,14 @@
+# backend/septoctor_ml/main.py
+
+from pathlib import Path
+from typing import Dict, Any
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from septoctor_ml.schemas import InferenceRequest
 from septoctor_ml.inference import predict_with_explainability
-from monitoring.run_drift import run_drift_and_get_html
+from monitoring.logger import log_current_data
 
 
 app = FastAPI(
@@ -21,10 +27,10 @@ app.add_middleware(
 
 
 # -----------------------------
-# Constants (Cloud Run safe)
+# Constants
 # -----------------------------
-BASE_DIR = Path("/app")
-DRIFT_REPORT_PATH = BASE_DIR / "artifacts" / "drift_report.html"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DRIFT_REPORT_PATH = BASE_DIR / "monitoring" / "reports" / "drift_latest.html"
 
 
 # -----------------------------
@@ -47,7 +53,7 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "message": "Septoctor ML API is running"}
 
 
 # -----------------------------
@@ -55,41 +61,35 @@ def health_check():
 # -----------------------------
 @app.post("/predict")
 def predict(payload: Dict[str, Any]):
-    return predict_with_explainability(payload)
-
-
-# -----------------------------
-# Drift
-# -----------------------------
-@app.post("/predict")
-def predict(payload: Dict[str, Any]):
     result = predict_with_explainability(payload)
 
-    # Merge inputs + prediction for drift
+    # Log inputs + prediction for drift monitoring
     log_row = {
         **payload,
         "sepsis_probability": result["sepsis_probability"],
         "sepsis_label": result["sepsis_label"],
     }
-
     log_current_data(log_row)
 
     return result
 
+
+# -----------------------------
+# Drift
+# -----------------------------
 @app.post("/run-drift")
 def run_drift():
+    from monitoring.run_drift import run_drift_and_get_html
     path = run_drift_and_get_html()
-    return {"status": "ok"}
+    return {"status": "ok", "report_path": str(path)}
+
 
 @app.get("/drift-report")
 def drift_report():
-    return FileResponse(
-        "/app/artifacts/drift_report.html",
-        media_type="text/html"
-    )
-
-    return FileResponse(
-        DRIFT_REPORT_PATH,
-        media_type="text/html",
-        filename="drift_report.html",
-    )
+    if DRIFT_REPORT_PATH.exists():
+        return FileResponse(
+            DRIFT_REPORT_PATH,
+            media_type="text/html",
+            filename="drift_report.html",
+        )
+    return {"error": "No drift report found. Run /run-drift first."}
