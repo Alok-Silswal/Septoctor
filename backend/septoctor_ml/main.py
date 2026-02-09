@@ -1,6 +1,7 @@
 # backend/septoctor_ml/main.py
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from septoctor_ml.schemas import InferenceRequest
 from septoctor_ml.inference import predict_with_explainability
 
@@ -8,6 +9,14 @@ app = FastAPI(
     title="Septoctor ML Inference API",
     version="1.0",
     description="AI-powered neonatal sepsis risk assessment API"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

@@ -22,8 +22,34 @@ def map_ui_to_model(raw: Dict[str, Any]) -> Dict[str, int | float]:
     mapped["pv_examinations_count"] = int(raw.get("pv_examinations_count") or 0)
 
     # If these existed during training (seen in error trace)
-    mapped["gestational_age_weeks"] = float(raw.get("gestational_age_weeks") or 0)
-    mapped["birth_weight_grams"] = float(raw.get("birth_weight_grams") or 0)
+    # Use direct numeric if available; fallback: derive from category
+    ga_weeks = raw.get("gestational_age_weeks")
+    if ga_weeks:
+        mapped["gestational_age_weeks"] = float(ga_weeks)
+    else:
+        ga_cat = raw.get("gestational_age_category")
+        if ga_cat == "<34 weeks":
+            mapped["gestational_age_weeks"] = 32.0
+        elif ga_cat in ("34–36 weeks", "34-36 weeks"):
+            mapped["gestational_age_weeks"] = 35.0
+        elif ga_cat in ("≥37 weeks", ">=37 weeks"):
+            mapped["gestational_age_weeks"] = 38.0
+        else:
+            mapped["gestational_age_weeks"] = 0.0
+
+    bw_grams = raw.get("birth_weight_grams")
+    if bw_grams:
+        mapped["birth_weight_grams"] = float(bw_grams)
+    else:
+        bw_cat = raw.get("birth_weight_category")
+        if bw_cat == "<1500 g":
+            mapped["birth_weight_grams"] = 1200.0
+        elif bw_cat in ("1500–2499 g", "1500-2499 g"):
+            mapped["birth_weight_grams"] = 2000.0
+        elif bw_cat in ("≥2500 g", ">=2500 g"):
+            mapped["birth_weight_grams"] = 3000.0
+        else:
+            mapped["birth_weight_grams"] = 0.0
 
     # =====================================================
     # Helper lambdas

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import shap
 from pathlib import Path
-from backend.monitoring.logger import log_current_data
+from monitoring.logger import log_current_data
 
 from septoctor_ml.feature_mapper import map_ui_to_model
 

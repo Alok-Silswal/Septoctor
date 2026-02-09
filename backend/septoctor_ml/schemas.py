@@ -19,9 +19,11 @@ class InferenceRequest(BaseModel):
     cotwin_iud: Optional[Union[str, int]]
 
     # Neonatal demographics
-    gestational_age_category: Optional[Union[str, int]]
-    birth_weight_category: Optional[Union[str, int]]
-    neonatal_sex: Optional[Union[str, int]]
+    gestational_age_category: Optional[Union[str, int]] = None
+    gestational_age_weeks: Optional[float] = None
+    birth_weight_category: Optional[Union[str, int]] = None
+    birth_weight_grams: Optional[float] = None
+    neonatal_sex: Optional[Union[str, int]] = None
 
     # Clinical
     temperature_celsius: Optional[float]
